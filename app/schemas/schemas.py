@@ -1,23 +1,8 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator, model_validator
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
-# User Schemas
-class UserBase(BaseModel):
-    email: EmailStr
-    full_name: str
-
-class UserCreate(UserBase):
-    password: str
-    is_teacher: bool
-
-class UserResponse(UserBase):
-    id: int
-    is_teacher: bool
-
-    model_config = ConfigDict(from_attributes=True)
-
-# Auth Schemas
+# ========== Auth Schemas ==========
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str
@@ -26,66 +11,162 @@ class TokenPair(BaseModel):
 class TokenData(BaseModel):
     email: str | None = None
 
-# Subject Schemas
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+# ========== User Schemas ==========
+class UserCreate(BaseModel):
+    email: EmailStr
+    first_name: str = Field(..., max_length=50)
+    last_name: str = Field(..., max_length=50)
+    patronymic: Optional[str] = Field(None, max_length=50)
+    password: str
+    role: Literal['student', 'teacher']
+
+    @field_validator('password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Пароль должен быть не менее 8 символов')
+        if not any(c.isupper() for c in v):
+            raise ValueError('Пароль должен содержать заглавные буквы')
+        return v
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    first_name: str
+    last_name: str
+    role: str
+    is_active: bool
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ========== Subject Schemas ==========
 class SubjectBase(BaseModel):
-    name: str
-    description: str | None = None
+    name: str = Field(..., max_length=100)
+    type: Literal['lecture', 'practice']
 
 class SubjectCreate(SubjectBase):
     pass
 
-class Subject(SubjectBase):
+class SubjectResponse(SubjectBase):
     id: int
     teacher_id: int
-    
+    group_ids: list[int]  
+
+    @model_validator(mode="before")
+    @classmethod
+    def extract_group_ids(cls, data):
+        if isinstance(data, dict):
+            return data
+        # Преобразуем объекты Group в список ID
+        data.group_ids = [group.id for group in data.groups]
+        return data
+
     model_config = ConfigDict(from_attributes=True)
 
-# Material Schemas
+# ========== Course Material Schemas ==========
 class MaterialBase(BaseModel):
-    title: str
-    content: str
+    title: str = Field(..., max_length=100)
+    description: Optional[str] = None
+    type: Literal['lecture', 'practice', 'assignment']
+    deadline: Optional[datetime] = None
 
 class MaterialCreate(MaterialBase):
-    pass
+    group_id: int
+    subject_id: int
 
-class Material(MaterialBase):
+class MaterialResponse(MaterialBase):
     id: int
+    subject_id: int
+    group_id: int
+    file_path: str
     created_at: datetime
-    subject_id: int
-    
+
     model_config = ConfigDict(from_attributes=True)
 
-# Assignment Schemas
-class AssignmentBase(BaseModel):
-    title: str
-    description: str
-    deadline: datetime
-
-class AssignmentCreate(AssignmentBase):
-    pass
-
-class Assignment(AssignmentBase):
-    id: int
-    subject_id: int
-    
-    model_config = ConfigDict(from_attributes=True)
-
-# Submission Schemas
+# ========== Assignment Submission Schemas ==========
 class SubmissionBase(BaseModel):
-    content: str
+    feedback: Optional[str] = None
+    grade: Optional[int] = Field(None, ge=0, le=100)
+    status: Optional[Literal['submitted', 'graded', 'rejected']] = 'submitted'
 
-class SubmissionCreate(SubmissionBase):
-    pass
+class SubmissionCreate(BaseModel):
+    file_path: str  
+    material_id: int  
 
-class Submission(SubmissionBase):
+class SubmissionResponse(SubmissionBase):
     id: int
-    submitted_at: datetime
+    submission_date: datetime
     student_id: int
-    assignment_id: int
+    material_id: int
+    file_path: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SubmissionGrade(BaseModel):  #
+    grade: int = Field(..., ge=0, le=100)
+    feedback: Optional[str] = None
+    status: Literal['graded', 'rejected']
+
+# ========== Group Schemas ==========
+class StudentResponse(BaseModel):
+    id: int
+    user_id: int
+    group_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class GroupResponse(BaseModel):
+    id: int
+    number: str
+    students: list[int]  
     
     model_config = ConfigDict(from_attributes=True)
 
-# Добавляем в конец файла
-class User(UserResponse):
-    """Алиас для совместимости"""
-    pass
+# ========== Schedule Schemas ==========
+class ScheduleBase(BaseModel):
+    start_time: datetime
+    end_time: datetime
+    subject_id: int
+
+class ScheduleResponse(ScheduleBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SubjectStudentView(BaseModel):
+    subject: dict
+    materials: list[dict]
+    group_info: dict
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CourseMaterialResponse(BaseModel):
+    id: int
+    title: str
+    type: Literal['lecture', 'practice', 'assignment']
+    description: Optional[str]
+    deadline: Optional[datetime]
+    created_at: datetime
+    file_path: str
+
+class AssignmentStatusResponse(BaseModel):
+    material_id: int
+    title: str
+    deadline: Optional[datetime]
+    status: Literal['not_started', 'submitted', 'graded', 'rejected']
+    grade: Optional[int] = Field(None, ge=0, le=100)
+
+
+class DeadlineResponse(BaseModel):
+    id: int
+    title: str
+    deadline: datetime
+    subject_id: int
+    group_id: int
+    file_path: Optional[str] = None  # Если нужно отображать прикрепленный файл
+
+    model_config = ConfigDict(from_attributes=True)

@@ -13,6 +13,10 @@ from app.database import get_db
 
 logger = logging.getLogger(__name__)
 
+from fastapi.templating import Jinja2Templates
+
+templates = Jinja2Templates(directory="app/templates")
+
 # Конфигурация токенов
 SECRET_KEY = "your-secret-key-keep-it-safe"
 REFRESH_SECRET_KEY = "your-refresh-secret-key-different"
