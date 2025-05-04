@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Мои дисциплины{% endblock %}
+
+{% block student_content %}
+<div class="card shadow">
+    <div class="card-header bg-success text-white">
+        <h4 class="mb-0">Текущие дисциплины</h4>
+        <small>Группа: {{ current_user.group.name }}</small>
+    </div>
+    
+    <div class="card-body">
+        {% if subjects %}
+        <div class="list-group">
+            {% for subject in subjects %}
+            <a href="/subjects/{{ subject.id }}" 
+               class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">{{ subject.name }}</h5>
+                    <span class="badge bg-primary rounded-pill">
+                        {{ subject.teacher.user.full_name }}
+                    </span>
+                </div>
+                <p class="mb-1 text-muted">{{ subject.description }}</p>
+                <small>Активных заданий: {{ subject.active_assignments_count }}</small>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">В вашей группе пока нет дисциплин</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

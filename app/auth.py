@@ -21,22 +21,35 @@ templates = Jinja2Templates(directory="app/templates")
 SECRET_KEY = "your-secret-key-keep-it-safe"
 REFRESH_SECRET_KEY = "your-refresh-secret-key-different"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
+REFRESH_TOKEN_EXPIRE_DAYS = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # CHANGED: Кастомизированная схема для Swagger UI
+# class CustomOAuth2PasswordBearer(OAuth2PasswordBearer):
+#     async def __call__(self, request: Request) -> Optional[str]:
+#         # Переопределяем параметры для формы
+#         return await super().__call__(request)
+
 class CustomOAuth2PasswordBearer(OAuth2PasswordBearer):
     async def __call__(self, request: Request) -> Optional[str]:
-        # Переопределяем параметры для формы
-        return await super().__call__(request)
+        # Получаем токен из куки вместо заголовка
+        token = request.cookies.get("access_token")
+        return token
+
+
+# oauth2_scheme = CustomOAuth2PasswordBearer(
+#     tokenUrl="auth/login",
+#     scheme_name="EmailAuth",
+#     description="Введите ваш **email** в поле 'username' и пароль",  # Уточнение
+#     scopes={"me": "Read user info"}
+# )
 
 oauth2_scheme = CustomOAuth2PasswordBearer(
     tokenUrl="auth/login",
-    scheme_name="EmailAuth",
-    description="Введите ваш **email** в поле 'username' и пароль",  # Уточнение
-    scopes={"me": "Read user info"}
+    scheme_name="CookieAuth",
+    description="Используйте форму входа для аутентификации",
 )
 
 def get_password_hash(password: str) -> str:

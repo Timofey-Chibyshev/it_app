@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+    {% if not current_user %}
+        <script>window.location.href = "/auth/login";</script>
+    {% else %}
+    <div class="container mt-5">
+        <h2>Добро пожаловать, {{ current_user.first_name }} {{ current_user.last_name }}!</h2>
+
+        <div class="row mt-4">
+            {% if is_teacher %}
+                <div class="col-md-4 mb-3">
+                    <a href="/subjects/detail" class="btn btn-primary btn-block">Мои предметы</a>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <a href="/calendar/classes" class="btn btn-info btn-block">Календарь занятий</a>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <a href="/search" class="btn btn-success btn-block">Поиск</a>
+                </div>
+            {% else %}
+                <div class="col-md-3 mb-3">
+                    <a href="/subjects/my" class="btn btn-primary btn-block">Предметы</a>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <a href="/calendar/classes" class="btn btn-info btn-block">Занятия</a>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <a href="/calendar/deadlines" class="btn btn-warning btn-block">Дедлайны</a>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <a href="/search" class="btn btn-success btn-block">Поиск</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}

@@ -9,7 +9,7 @@
     <div class="alert error">{{ error }}</div>
     {% endif %}
     
-    <form method="POST" action="/auth/registration">
+    <form method="POST" action="/auth/register-form">
         <div class="form-group">
             <label>Email:</label>
             <input type="email" name="email" required>
@@ -29,6 +29,8 @@
             <label>Фамилия:</label>
             <input type="text" name="last_name" required>
         </div>
+
+
 
         <div class="form-group">
             <label>Роль:</label>
