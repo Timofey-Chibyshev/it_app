@@ -7,21 +7,19 @@ from app.routers import (
     materials,
     assignments,
     calendar,
-   # admin
+home
 )
 from app.database import engine, Base
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from app.dependencies import templates  # Измененный импорт
 
 app = FastAPI()
-
 
 # Монтируем статические файлы
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Инициализируем шаблоны
-templates = Jinja2Templates(directory="app/templates")
-
+# Убрали инициализацию шаблонов здесь
+app.include_router(home.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(groups.router)
@@ -29,7 +27,6 @@ app.include_router(subjects.router)
 app.include_router(materials.router)
 app.include_router(assignments.router)
 app.include_router(calendar.router)
-#app.include_router(admin.router)
 
 @app.on_event("startup")
 async def startup():

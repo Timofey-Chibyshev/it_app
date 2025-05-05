@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Преподаваемые предметы{% endblock %}
+
+{% block teacher_content %}
+<div class="card shadow">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">Мои предметы</h4>
+        <small>Всего групп: {{ total_groups }}</small>
+    </div>
+    
+    <div class="card-body">
+        {% if subjects %}
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for subject in subjects %}
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="card-title mb-0">{{ subject.name }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">{{ subject.description }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge bg-secondary">
+                                Групп: {{ subject.groups|length }}
+                            </span>
+                            <div class="btn-group">
+                                <a href="/subjects/{{ subject.id }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    Управление
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer text-muted">
+                        Создано: {{ subject.created_at.date() }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">У вас пока нет предметов</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

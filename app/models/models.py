@@ -28,6 +28,7 @@ class User(Base):
     student_profile = relationship("Student", back_populates="user", uselist=False, cascade="all, delete-orphan")
     teacher_profile = relationship("Teacher", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
+
 class Student(Base):
     __tablename__ = 'students'
     

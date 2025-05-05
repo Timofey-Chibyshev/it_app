@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Создать предмет{% endblock %}
+
+{% block content %}
+<div class="card shadow col-md-6 mx-auto">
+    <div class="card-header bg-success text-white">
+        <h4>Создание предмета</h4>
+    </div>
+    
+    <div class="card-body">
+        <form method="post">
+            <div class="mb-3">
+                <label class="form-label">Название</label>
+                <input type="text" class="form-control" name="name" required>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Описание</label>
+                <textarea class="form-control" name="description" rows="3"></textarea>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Группы</label>
+                <select class="form-select" multiple name="groups">
+                    {% for group in groups %}
+                    <option value="{{ group.id }}">{{ group.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Создать</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

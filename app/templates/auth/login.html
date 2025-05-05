@@ -3,28 +3,67 @@
 {% block title %}Вход{% endblock %}
 
 {% block content %}
-<div class="auth-form">
-    <h2>Вход в систему</h2>
-    {% if error %}
-    <div class="alert error">{{ error }}</div>
-    {% endif %}
-    
-    <form method="POST" action="/auth/login">
-        <div class="form-group">
-            <label>Email:</label>
-            <input type="email" name="username" required>
-        </div>
-        
-        <div class="form-group">
-            <label>Пароль:</label>
-            <input type="password" name="password" required>
-        </div>
+<div class="auth-wrapper">
+    <div class="auth-form fade-in">
+        <h2 class="d-flex align-items-center justify-content-center">
+            <i class="bi bi-door-open fs-1 me-3"></i>
+            <span>Вход в систему</span>
+        </h2>
 
-        <button type="submit" class="btn btn-primary">Войти</button>
-    </form>
-    
-    <div class="auth-links">
-        <a href="/auth/register">Регистрация</a>
+        {% if error %}
+        <div class="alert error mb-4">
+            <i class="bi bi-exclamation-circle fs-5 me-2"></i>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/auth/login-form">
+            <!-- Поле Email -->
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <div class="input-field">
+                    <i class="bi bi-envelope-fill input-icon"></i>
+                    <input 
+                        type="email" 
+                        name="username" 
+                        class="form-control"
+                        required 
+                        placeholder="example@edu.ru"
+                        autocomplete="username"
+                    >
+                </div>
+            </div>
+
+            <!-- Поле Пароль -->
+            <div class="form-group">
+                <label class="form-label">Пароль</label>
+                <div class="input-field">
+                    <i class="bi bi-lock-fill input-icon"></i>
+                    <input 
+                        type="password" 
+                        name="password" 
+                        class="form-control"
+                        required 
+                        placeholder="••••••••"
+                        autocomplete="current-password"
+                    >
+                </div>
+            </div>
+
+            <!-- Кнопка входа -->
+            <button type="submit" class="btn btn-primary btn-block mt-4 py-3">
+                <i class="bi bi-box-arrow-in-right me-2"></i>
+                <span>Войти в систему</span>
+            </button>
+
+            <!-- Ссылка на регистрацию -->
+            <div class="auth-links mt-4 text-center">
+                <span class="text-muted">Нет аккаунта?</span>
+                <a href="/auth/register" class="text-decoration-none fw-bold ms-2">
+                    Создать аккаунт
+                </a>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
