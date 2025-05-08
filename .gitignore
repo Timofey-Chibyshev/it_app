@@ -1,0 +1,33 @@
+# Virtual environment
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# Alembic migrations (если не храните в репозитории)
+alembic/versions/
+
+# Тестовые данные
+test_data/
+
+# Прочие
+.DS_Store

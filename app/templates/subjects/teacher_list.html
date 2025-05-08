@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Мои предметы{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-journal-bookmark-fill text-primary"></i>
+            Преподаваемые предметы
+        </h1>
+        <a href="/subjects/create" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-2"></i>Создать предмет
+        </a>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Всего предметов
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ total_subjects }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-journals fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Всего групп
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ total_groups }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-people-fill fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Список предметов -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Активные предметы</h6>
+        </div>
+
+        <div class="card-body">
+            {% if subjects %}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for subject in subjects %}
+                <div class="col">
+                    <div class="card h-100 border-left-info shadow">
+                        <div class="card-header">
+                            <h5 class="card-title mb-1">
+                                <i class="bi bi-book-half me-2"></i>{{ subject.name }}
+                            </h5>
+                        </div>
+
+                        <div class="card-body">
+                            <p class="card-text text-muted">
+                                {{ subject.description or "Описание отсутствует" }}
+                            </p>
+
+                            <div class="mb-3">
+                                <span class="badge bg-primary">
+                                    <i class="bi bi-people-fill me-1"></i>
+                                    Групп: {{ subject.groups|length }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="card-footer bg-transparent">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="/subjects/{{ subject.id }}"
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-gear-wide me-1"></i>Управление
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="mb-3">
+                    <i class="bi bi-journal-x display-4 text-muted"></i>
+                </div>
+                <h5 class="text-gray-800">Нет доступных предметов</h5>
+                <p class="text-muted">Начните с создания нового предмета</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Пример скрипта для динамического обновления
+document.addEventListener('DOMContentLoaded', function() {
+    // Инициализация тултипов
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+});
+</script>
+{% endblock %}

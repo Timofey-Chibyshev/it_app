@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Главная страница{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Заголовок и кнопка выхода -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-5 py-4">
+        <h1 class="text-primary mb-3 mb-md-0 text-center text-md-start">
+            Добро пожаловать, 
+            <span class="fw-bold d-block d-md-inline">{{ current_user.first_name }} {{ current_user.last_name }}</span>
+        </h1>
+    </div>
+
+    <!-- Основной контент -->
+    <div class="dashboard-grid">
+        <div class="row g-4">
+            {% if current_user.role == "teacher" %}
+                <!-- Панель преподавателя -->
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="h-100">
+                        <a href="/subjects/my" class="btn btn-primary h-100 w-100 dashboard-card">
+                            <i class="bi bi-journal-bookmark"></i>
+                            <span class="mt-2">Мои предметы</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="h-100">
+                        <a href="/calendar/classes" class="btn btn-info h-100 w-100 dashboard-card">
+                            <i class="bi bi-calendar-week"></i>
+                            <span class="mt-2">Календарь занятий</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="h-100">
+                        <a href="/search" class="btn btn-success h-100 w-100 dashboard-card">
+                            <i class="bi bi-search"></i>
+                            <span class="mt-2">Поиск</span>
+                        </a>
+                    </div>
+                </div>
+
+            {% else %}
+                <!-- Панель студента -->
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="h-100">
+                        <a href="/subjects/my" class="btn btn-primary h-100 w-100 dashboard-card">
+                            <i class="bi bi-journals"></i>
+                            <span class="mt-2">Мои предметы</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="h-100">
+                        <a href="/calendar/classes" class="btn btn-info h-100 w-100 dashboard-card">
+                            <i class="bi bi-clock-history"></i>
+                            <span class="mt-2">Расписание</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="h-100">
+                        <a href="/calendar/deadlines" class="btn btn-warning h-100 w-100 dashboard-card">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <span class="mt-2">Дедлайны</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="h-100">
+                        <a href="/search" class="btn btn-success h-100 w-100 dashboard-card">
+                            <i class="bi bi-search"></i>
+                            <span class="mt-2">Поиск</span>
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

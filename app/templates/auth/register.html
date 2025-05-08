@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-form fade-in">
+        <h2 class="d-flex align-items-center justify-content-center">
+            <i class="bi bi-person-plus fs-1 me-3"></i>
+            <span>Регистрация</span>
+        </h2>
+
+        {% if error %}
+        <div class="alert error mb-4">
+            <i class="bi bi-exclamation-circle fs-5 me-2"></i>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/auth/register-form">
+            <!-- Имя и Фамилия -->
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Имя</label>
+                        <div class="input-field">
+                            <i class="bi bi-person-badge-fill input-icon"></i>
+                            <input 
+                                type="text" 
+                                name="first_name" 
+                                class="form-control"
+                                required 
+                                placeholder="Иван"
+                                autocomplete="given-name"
+                                value="{{ form_data.get('first_name', '') }}"
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Фамилия</label>
+                        <div class="input-field">
+                            <i class="bi bi-person-vcard-fill input-icon"></i>
+                            <input 
+                                type="text" 
+                                name="last_name" 
+                                class="form-control"
+                                required 
+                                placeholder="Иванов"
+                                autocomplete="family-name"
+                                value="{{ form_data.get('last_name', '') }}"
+                            >
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Поле Email -->
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <div class="input-field">
+                    <i class="bi bi-envelope-at-fill input-icon"></i>
+                    <input 
+                        type="email" 
+                        name="email" 
+                        class="form-control"
+                        required 
+                        placeholder="example@edu.ru"
+                        autocomplete="email"
+                        value="{{ form_data.get('email', '') }}"
+                    >
+                </div>
+            </div>
+
+            <!-- Поле Пароль -->
+            <div class="form-group password-field"> <!-- Добавляем специальный класс -->
+                <label class="form-label">Пароль</label>
+                <div class="input-field">
+                    <i class="bi bi-lock-fill input-icon"></i>
+                    <input 
+                        type="password" 
+                        name="password" 
+                        class="form-control password-input"
+                        required 
+                        placeholder="••••••••"
+                    >
+                    <i class="bi bi-eye-slash toggle-password" onclick="togglePassword(this)"></i>
+                </div>
+            </div>
+
+            <!-- Выбор роли -->
+            <div class="form-group">
+                <label class="form-label">Роль</label>
+                <div class="input-field">
+                    <i class="bi bi-person-gear input-icon"></i>
+                    <select 
+                        name="role" 
+                        class="form-select"
+                        required
+                    >
+                        <option value="student" {% if form_data.get('role') == 'student' %}selected{% endif %}>Студент</option>
+                        <option value="teacher" {% if form_data.get('role') == 'teacher' %}selected{% endif %}>Преподаватель</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Кнопка регистрации -->
+            <button type="submit" class="btn btn-primary btn-block mt-4 py-3">
+                <i class="bi bi-check2-circle me-2"></i>
+                <span>Создать аккаунт</span>
+            </button>
+
+            <!-- Ссылка на вход -->
+            <div class="auth-links mt-4 text-center">
+                <span class="text-muted">Уже есть аккаунт?</span>
+                <a href="/auth/login" class="text-decoration-none fw-bold ms-2">
+                    Войти в систему
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

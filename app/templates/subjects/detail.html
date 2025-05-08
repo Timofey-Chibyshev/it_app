@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-header bg-info text-white">
+        <h4>{{ subject.name }}</h4>
+    </div>
+    
+    <div class="card-body">
+        <p>{{ subject.description }}</p>
+        
+        {% if is_teacher %}
+        <div class="mt-4">
+            <h5>Прикрепленные группы:</h5>
+            <ul>
+                {% for group in subject.groups %}
+                <li>{{ group.name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
