@@ -75,15 +75,15 @@
             </div>
 
             <!-- Поле Пароль -->
-            <div class="form-group password-field"> <!-- Добавляем специальный класс -->
+            <div class="form-group password-field">
                 <label class="form-label">Пароль</label>
                 <div class="input-field">
                     <i class="bi bi-lock-fill input-icon"></i>
-                    <input 
-                        type="password" 
-                        name="password" 
+                    <input
+                        type="password"
+                        name="password"
                         class="form-control password-input"
-                        required 
+                        required
                         placeholder="••••••••"
                     >
                     <i class="bi bi-eye-slash toggle-password" onclick="togglePassword(this)"></i>
@@ -95,14 +95,31 @@
                 <label class="form-label">Роль</label>
                 <div class="input-field">
                     <i class="bi bi-person-gear input-icon"></i>
-                    <select 
-                        name="role" 
+                    <select
+                        name="role"
                         class="form-select"
                         required
+                        id="roleSelect"
                     >
                         <option value="student" {% if form_data.get('role') == 'student' %}selected{% endif %}>Студент</option>
                         <option value="teacher" {% if form_data.get('role') == 'teacher' %}selected{% endif %}>Преподаватель</option>
                     </select>
+                </div>
+            </div>
+
+            <!-- Поле Группы (только для студентов) -->
+            <div class="form-group group-field" id="groupField" style="display: none;">
+                <label class="form-label">Номер группы</label>
+                <div class="input-field highlighted">
+                    <i class="bi bi-people-fill input-icon"></i>
+                    <input
+                        type="text"
+                        name="group"
+                        class="form-control"
+                        placeholder="Группа 123"
+                        autocomplete="off"
+                        value="{{ form_data.get('group', '') }}"
+                    >
                 </div>
             </div>
 
@@ -122,4 +139,50 @@
         </form>
     </div>
 </div>
+
+<script>
+// Показ/скрытие поля группы при изменении роли
+function toggleGroupField() {
+    const roleSelect = document.getElementById('roleSelect');
+    const groupField = document.getElementById('groupField');
+    const groupInput = groupField.querySelector('input[name="group"]');
+
+    if (roleSelect.value === 'student') {
+        groupField.style.display = 'block';
+        groupInput.required = true;
+    } else {
+        groupField.style.display = 'none';
+        groupInput.required = false;
+    }
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    toggleGroupField(); // Проверяем начальное состояние
+    document.getElementById('roleSelect').addEventListener('change', toggleGroupField);
+});
+
+// Функция для переключения видимости пароля (уже существующая)
+function togglePassword(icon) {
+    const input = icon.previousElementSibling;
+    const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+    input.setAttribute('type', type);
+    icon.classList.toggle('bi-eye-slash');
+    icon.classList.toggle('bi-eye');
+}
+</script>
+
+<style>
+/* Подсветка поля группы */
+.highlighted {
+    border: 2px solid #4CAF50 !important;
+    border-radius: 8px;
+    transition: border-color 0.3s ease;
+    padding: 0.5rem;
+}
+
+.group-field .input-icon {
+    color: #4CAF50 !important;
+}
+</style>
 {% endblock %}

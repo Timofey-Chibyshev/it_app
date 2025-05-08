@@ -549,15 +549,14 @@ async def subject_detail_page(
         db: AsyncSession = Depends(database.get_db),
         current_user: models.User = Depends(get_current_user)
 ):
-    """
-    Детальная страница предмета
-    """
     subject = await db.execute(
         select(models.Subject)
         .options(
             selectinload(models.Subject.groups),
-            selectinload(models.Subject.assignments),
-            selectinload(models.Subject.teacher)
+            selectinload(models.Subject.teacher),
+            selectinload(models.Subject.materials)
+            .selectinload(models.CourseMaterial.submissions),
+            selectinload(models.Subject.schedule)
         )
         .where(models.Subject.id == subject_id)
     )
@@ -566,18 +565,16 @@ async def subject_detail_page(
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
-    # Проверка доступа
+    # Проверка доступа для студентов
     if current_user.role == "student":
         student = await db.execute(
             select(models.Student)
             .where(models.Student.user_id == current_user.id)
         )
         student = student.scalar()
+
         if not student or student.group_id not in [g.id for g in subject.groups]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied"
-            )
+            raise HTTPException(status_code=403, detail="Access denied")
 
     return templates.TemplateResponse(
         "subjects/detail.html",
@@ -594,76 +591,136 @@ UPLOAD_DIR = "uploads"
 Path(UPLOAD_DIR).mkdir(exist_ok=True)
 from datetime import datetime
 
+
 @router.get("/{subject_id}/materials", response_class=HTMLResponse)
-async def subject_materials_page(
+async def materials_page(
         subject_id: int,
         request: Request,
         db: AsyncSession = Depends(database.get_db),
         current_user: models.User = Depends(get_current_user)
 ):
-    """
-    Страница с материалами предмета для преподавателя
-    """
-    # Проверка прав доступа
-    subject = await get_subject_with_check(db, subject_id, current_user)
+    try:
+        # Проверка существования предмета
+        subject = await db.execute(
+            select(models.Subject)
+            .options(
+                selectinload(models.Subject.teacher),
+                selectinload(models.Subject.groups),
+                selectinload(models.Subject.materials)
+                .selectinload(models.CourseMaterial.submissions)
+            )
+            .where(models.Subject.id == subject_id)
+        )
+        subject = subject.scalar()
 
-    return templates.TemplateResponse(
-        "subjects/teacher_materials.html",
-        {
+        if not subject:
+            raise HTTPException(status_code=404, detail="Subject not found")
+
+        # Проверка прав доступа
+        if current_user.role != "teacher" or subject.teacher.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Forbidden")
+
+        # Получение групп предмета
+        groups = subject.groups
+
+        # Получение параметров запроса
+        error = request.query_params.get("error")
+        success = request.query_params.get("success")
+
+        return templates.TemplateResponse(
+            "subjects/materials.html",
+            {
+                "request": request,
+                "subject": subject,
+                "groups": groups,
+                "materials": subject.materials,
+                "current_time": datetime.now(),
+                "error": error,
+                "success": success
+            }
+        )
+
+    except HTTPException as e:
+        error_context = {
             "request": request,
-            "subject": subject,
-            "current_user": current_user,
-            "groups": subject.groups
+            "status_code": e.status_code,
+            "detail": e.detail
         }
-    )
+        return templates.TemplateResponse(
+            "error.html",
+            error_context,
+            status_code=e.status_code
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return templates.TemplateResponse(
+            "error.html",
+            {
+                "request": request,
+                "status_code": 500,
+                "detail": "Internal Server Error"
+            },
+            status_code=500
+        )
+
 
 from fastapi import UploadFile, File
 import shutil
 import os
+import uuid
 
 @router.post("/{subject_id}/materials")
-async def upload_material(
+async def create_material(
         subject_id: int,
-        title: str = Form(...),
-        description: str = Form(None),
-        type: str = Form(...),
-        group_id: int = Form(...),
+        request: Request,
         file: UploadFile = File(...),
-        deadline: datetime = Form(None),
+        material_type: str = Form(...),
+        group_id: int = Form(...),
         db: AsyncSession = Depends(database.get_db),
         current_user: models.User = Depends(get_current_user)
 ):
-    """
-    Загрузка нового материала
-    """
-    subject = await get_subject_with_check(db, subject_id, current_user)
+    try:
+        # Проверка прав
+        subject = await get_subject_with_check(db, subject_id, current_user)
 
-    # Сохранение файла
-    file_path = os.path.join(UPLOAD_DIR, f"subject_{subject_id}", f"group_{group_id}")
-    Path(file_path).mkdir(parents=True, exist_ok=True)
-    full_path = os.path.join(file_path, file.filename)
+        # Создание папки для загрузок
+        upload_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}" / f"group_{group_id}"
+        upload_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(full_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        # Генерация уникального имени файла
+        file_ext = Path(file.filename).suffix
+        unique_name = f"{uuid.uuid4()}{file_ext}"
+        file_path = upload_dir / unique_name
 
-    # Создание записи в БД
-    new_material = models.CourseMaterial(
-        title=title,
-        description=description,
-        type=type,
-        file_path=str(full_path),
-        subject_id=subject_id,
-        group_id=group_id,
-        deadline=deadline
-    )
+        # Сохранение файла
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
-    db.add(new_material)
-    await db.commit()
+        # Запись в БД
+        new_material = models.CourseMaterial(
+            title=file.filename,
+            type=material_type,
+            file_path=str(file_path),
+            subject_id=subject_id,
+            group_id=group_id
+        )
+        db.add(new_material)
+        await db.commit()
 
-    return RedirectResponse(
-        url=f"/subjects/{subject_id}/materials",
-        status_code=303
-    )
+        # Перенаправление с сообщением об успехе
+        return RedirectResponse(
+            request.url_for("materials_page", subject_id=subject_id),
+            status_code=303,
+            headers={"success": file.filename}
+        )
+
+    except Exception as e:
+        # Перенаправление с сообщением об ошибке
+        return RedirectResponse(
+            request.url_for("materials_page", subject_id=subject_id),
+            status_code=303,
+            headers={"error": str(e)}
+        )
 
 
 @router.get("/{subject_id}/submissions", response_class=HTMLResponse)
@@ -939,3 +996,177 @@ async def handle_create_subject(
         )
 
 
+from pathlib import Path
+import shutil
+import os
+from datetime import datetime
+
+UPLOAD_DIR = "uploads"
+Path(UPLOAD_DIR).mkdir(exist_ok=True)
+
+
+async def get_subject_with_check(db: AsyncSession, subject_id: int, user: models.User):
+    """Проверка прав доступа к предмету"""
+    subject = await db.execute(
+        select(models.Subject)
+        .options(selectinload(models.Subject.teacher))
+        .where(models.Subject.id == subject_id)
+    )
+    subject = subject.scalar()
+
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    if user.role != "teacher" or subject.teacher.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    return subject
+
+
+@router.get("/{subject_id}/materials", response_class=HTMLResponse)
+async def materials_page(
+        subject_id: int,
+        request: Request,
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    subject = await get_subject_with_check(db, subject_id, current_user)
+
+    # Получаем материалы с группами
+    materials = await db.execute(
+        select(models.CourseMaterial)
+        .options(
+            selectinload(models.CourseMaterial.group),
+            selectinload(models.CourseMaterial.submissions)
+        )
+        .where(models.CourseMaterial.subject_id == subject_id)
+    )
+
+    return templates.TemplateResponse(
+        "subjects/materials.html",
+        {
+            "request": request,
+            "subject": subject,
+            "materials": materials.scalars().all(),
+            "groups": subject.groups,
+            "current_time": datetime.now()
+        }
+    )
+
+
+@router.post("/{subject_id}/materials")
+async def create_material(
+        subject_id: int,
+        request: Request,
+        title: str = Form(...),
+        description: str = Form(None),
+        material_type: str = Form(...),
+        group_id: int = Form(...),
+        deadline: datetime = Form(None),
+        file: UploadFile = File(...),
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    subject = await get_subject_with_check(db, subject_id, current_user)
+
+    # Валидация дедлайна
+    if material_type == "assignment" and not deadline:
+        raise HTTPException(
+            status_code=400,
+            detail="Deadline is required for assignments"
+        )
+
+    # Сохранение файла
+    file_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}" / f"group_{group_id}"
+    file_dir.mkdir(parents=True, exist_ok=True)
+    file_path = file_dir / file.filename
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Создание материала
+    new_material = models.CourseMaterial(
+        title=title,
+        description=description,
+        type=material_type,
+        file_path=str(file_path),
+        subject_id=subject_id,
+        group_id=group_id,
+        deadline=deadline
+    )
+
+    db.add(new_material)
+    await db.commit()
+
+    return RedirectResponse(
+        url=f"/subjects/{subject_id}/materials",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+
+
+@router.get("/{subject_id}/submissions", response_class=HTMLResponse)
+async def view_submissions(
+        subject_id: int,
+        request: Request,
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    subject = await get_subject_with_check(db, subject_id, current_user)
+
+    # Получаем все сдачи по предмету
+    submissions = await db.execute(
+        select(models.AssignmentSubmission)
+        .options(
+            selectinload(models.AssignmentSubmission.material),
+            selectinload(models.AssignmentSubmission.student)
+        )
+        .join(models.CourseMaterial)
+        .where(models.CourseMaterial.subject_id == subject_id)
+    )
+
+    return templates.TemplateResponse(
+        "subjects/submissions.html",
+        {
+            "request": request,
+            "subject": subject,
+            "submissions": submissions.scalars().all()
+        }
+    )
+
+
+@router.post("/submissions/{submission_id}/grade")
+async def grade_submission(
+        submission_id: int,
+        grade: int = Form(...),
+        feedback: str = Form(None),
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    submission = await db.execute(
+        select(models.AssignmentSubmission)
+        .options(selectinload(models.AssignmentSubmission.material))
+        .where(models.AssignmentSubmission.id == submission_id)
+    )
+    submission = submission.scalar()
+
+    # Проверка прав
+    subject = await db.execute(
+        select(models.Subject)
+        .where(models.Subject.id == submission.material.subject_id)
+    )
+    subject = subject.scalar()
+
+    if subject.teacher.user_id != current_user.id:
+        raise HTTPException(status_code=403)
+
+    # Обновление данных
+    submission.grade = grade
+    submission.feedback = feedback
+    submission.status = "graded"
+
+    await db.commit()
+
+    return RedirectResponse(
+        url=f"/subjects/{subject.id}/submissions",
+        status_code=303
+    )

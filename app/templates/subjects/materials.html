@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">
+                <i class="bi bi-cloud-upload me-2"></i>
+                Загрузка материалов
+            </h4>
+        </div>
+
+        <div class="card-body">
+            <!-- Простая форма -->
+            <form method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">Выберите файл</label>
+                    <input type="file"
+                           class="form-control"
+                           name="file"
+                           required>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Тип материала</label>
+                        <select name="material_type"
+                                class="form-select"
+                                required>
+                            <option value="lecture">Лекция</option>
+                            <option value="practice">Практика</option>
+                            <option value="assignment">Задание</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Группа</label>
+                        <select name="group_id"
+                                class="form-select"
+                                required>
+                            {% for group in groups %}
+                            <option value="{{ group.id }}">{{ group.number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <button type="submit"
+                                class="btn btn-success w-100">
+                            <i class="bi bi-upload me-2"></i>
+                            Загрузить
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Секция с сообщениями -->
+            {% if error %}
+            <div class="alert alert-danger mt-3">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            {% if success %}
+            <div class="alert alert-success mt-3">
+                Файл "{{ success }}" успешно загружен!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

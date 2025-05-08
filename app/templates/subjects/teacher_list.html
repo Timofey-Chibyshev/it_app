@@ -90,11 +90,19 @@
 
                         <div class="card-footer bg-transparent">
                             <div class="d-flex justify-content-between align-items-center">
-                                <a href="/subjects/{{ subject.id }}"
-                                   class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-gear-wide me-1"></i>Управление
-                                </a>
-                            </div>
+                                <div class="btn-group">
+                                    <a href="/subjects/{{ subject.id }}/materials"
+                                    class="btn btn-sm btn-outline-primary"
+                                    title="Добавить материалы">
+                                    <i class="bi bi-file-earmark-plus me-1"></i>Материалы
+                                    </a>
+                                    <a href="/subjects/{{ subject.id }}"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    title="Настройки предмета">
+                                    <i class="bi bi-gear-wide me-1"></i>Настройки
+                                    </a>
+                                </div>
+                             </div>
                         </div>
                     </div>
                 </div>
