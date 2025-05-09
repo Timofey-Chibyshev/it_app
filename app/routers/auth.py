@@ -27,7 +27,8 @@ from app.auth import (
     templates,
 )
 from app.schemas.schemas import RefreshRequest, TokenPair, UserCreate, UserResponse
-from app.models.models import User, Student, Teacher, Group
+
+from app.models.models import Group, User, Student, Teacher
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,6 @@ async def login_page(request: Request, error: Optional[str] = None):
             "form_data": {}  # Пустой словарь для новых сессий
         }
     )
-
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request, error: Optional[str] = None):
@@ -115,7 +115,6 @@ async def web_login(
 
     return response
 
-
 @router.post("/register-form", response_class=HTMLResponse)
 async def web_register(
         request: Request,
@@ -129,9 +128,13 @@ async def web_register(
 ):
     form_data = await request.form()
 
+    role_value = role  # Используем значение как есть из формы
+
     try:
-        # Валидация группы для студентов
-        if role == "student":
+        # Проверка группы для студентов
+        if role_value == "student":
+
+
             if not group or not group.strip():
                 return templates.TemplateResponse(
                     "auth/register.html",
@@ -142,23 +145,25 @@ async def web_register(
                     }
                 )
 
-            # Поиск существующей группы
-            group = group.strip()
-            existing_group = await db.execute(
-                select(Group).where(Group.number == group)
-            )
-            group_obj = existing_group.scalar()
+            
+            # Очищаем и проверяем номер группы
+            group_number = group.strip()
+            print(group_number)
+            print(len(group_number))
+            print(group_number[0].isalpha())
+            if len(group_number) < 2:
+                return templates.TemplateResponse(
+                    "auth/register.html",
+                    {
+                        "request": request,
+                        "error": "Неверный формат номера группы",
+                        "form_data": dict(form_data)
+                    }
+                )
 
-            # Создаем группу если не найдена
-            if not group_obj:
-                group_obj = Group(number=group)
-                db.add(group_obj)
-                await db.commit()
-                await db.refresh(group_obj)
+        # Проверка существующего пользователя
+        existing_user = await db.execute(select(User).where(User.email == email))
 
-        # Проверка уникальности email
-        existing_user = await db.execute(
-            select(User).where(User.email == email))
         if existing_user.scalar():
             return templates.TemplateResponse(
                 "auth/register.html",
@@ -176,17 +181,32 @@ async def web_register(
             hashed_password=hashed_password,
             first_name=first_name,
             last_name=last_name,
-            role=role,
-            is_active=True
-        )
-        db.add(db_user)
-        await db.flush()  # Получаем ID пользователя
 
-        # Создание профиля
-        if role == "student":
+            role=role_value,
+
+            role=role,
+
+
+        # Обработка ролей
+        if role_value == "teacher":
+            teacher = Teacher(user_id=db_user.id, position="Преподаватель")
+            db.add(teacher)
+        elif role_value == "student":
+            # Поиск или создание группы
+            group_result = await db.execute(
+                select(Group).where(Group.number == group_number))
+            db_group = group_result.scalar()
+
+            if not db_group:
+                db_group = Group(number=group_number)
+                db.add(db_group)
+                await db.flush()  
+
+            # Создание студента с привязкой к группе
             student = Student(
                 user_id=db_user.id,
-                group_id=group_obj.id  # Используем созданную группу
+                group_id=db_group.id  
+
             )
             db.add(student)
         elif role == "teacher":
@@ -201,7 +221,7 @@ async def web_register(
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Registration error: {str(e)}")
+        logger.error(f"Registration error: {str(e)}", exc_info=True)
         return templates.TemplateResponse(
             "auth/register.html",
             {
@@ -210,7 +230,6 @@ async def web_register(
                 "form_data": dict(form_data)
             }
         )
-
 
 
 # ---------------------------

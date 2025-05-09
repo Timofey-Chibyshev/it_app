@@ -1,24 +1,19 @@
 from fastapi import FastAPI
-from app.routers import (
-    auth,
-    users,
-    groups,
-    subjects,
-    materials,
-    assignments,
-    calendar,
-home
-)
-from app.database import engine, Base
 from fastapi.staticfiles import StaticFiles
-from app.dependencies import templates  # Измененный импорт
+from app.database import engine, Base
+from app.dependencies import templates  # Должен быть первым импортом!
+from app.routers import (
+    auth, users, groups,
+    subjects, materials,
+    assignments, calendar,
+    home
+)
 
 app = FastAPI()
 
-# Монтируем статические файлы
+# Важно: монтирование статики после импорта dependencies
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Убрали инициализацию шаблонов здесь
 app.include_router(home.router)
 app.include_router(auth.router)
 app.include_router(users.router)
@@ -32,3 +27,4 @@ app.include_router(calendar.router)
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Расписание занятий{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-primary">
+            <i class="bi bi-calendar-week me-2"></i>
+            Расписание занятий
+        </h1>
+        <a href="/home" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left-circle me-2"></i>
+            На главную
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            {% if current_user.role == "teacher" %}
+                <!-- Расписание для преподавателя -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Дата и время</th>
+                                <th>Предмет</th>
+                                <th>Тип занятия</th>
+                                <th>Группы</th>
+                                <th>Длительность</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for schedule in schedules %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ schedule.start_time|datetime_format("%d.%m.%Y") }}</div>
+                                    <div class="text-muted">{{ schedule.start_time|datetime_format("%H:%M") }} - {{ schedule.end_time|datetime_format("%H:%M") }}</div>
+                                </td>
+                                <td>{{ schedule.subject.name }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'info' if schedule.subject.type == 'lecture' else 'warning' }}">
+                                        {{ 'Лекция' if schedule.subject.type == 'lecture' else 'Практика' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% for group in schedule.subject.groups %}
+                                        <span class="badge bg-secondary me-1">{{ group.number }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td>{{ (schedule.end_time - schedule.start_time)|duration_format }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    Нет запланированных занятий
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            {% else %}
+                <!-- Расписание для студента -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Дата и время</th>
+                                <th>Предмет</th>
+                                <th>Тип занятия</th>
+                                <th>Преподаватель</th>
+                                <th>Аудитория</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for schedule in schedules %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ schedule.start_time|datetime_format("%d.%m.%Y") }}</div>
+                                    <div class="text-muted">{{ schedule.start_time|datetime_format("%H:%M") }} - {{ schedule.end_time|datetime_format("%H:%M") }}</div>
+                                </td>
+                                <td>{{ schedule.subject.name }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'info' if schedule.subject.type == 'lecture' else 'warning' }}">
+                                        {{ 'Лекция' if schedule.subject.type == 'lecture' else 'Практика' }}
+                                    </span>
+                                </td>
+                                <td>{{ schedule.subject.teacher.user.last_name }} {{ schedule.subject.teacher.user.first_name }}</td>
+                                <td>
+                                    <span class="badge bg-success">
+                                        {{ schedule.subject.groups[0].number|auditory_from_group }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    Нет запланированных занятий
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
