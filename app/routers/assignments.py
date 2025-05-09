@@ -24,8 +24,11 @@ from app import database
 from app.auth import get_current_user
 from app.dependencies import templates
 from sqlalchemy import text
-
+import logging
+logger = logging.getLogger(__name__)
 from sqlalchemy import cast, String
+
+from app.models.models import AssignmentSubmission as Submission
 
 router = APIRouter(
     prefix="/subjects/{subject_id}/assignments",
@@ -73,7 +76,7 @@ async def get_assignment_with_submissions(
         select(models.CourseMaterial)
         .options(
             selectinload(models.CourseMaterial.submissions)
-            .selectinload(models.Submission.student)
+            .selectinload(Submission.student)
             .selectinload(models.Student.user),
             selectinload(models.CourseMaterial.group)
         )
@@ -106,8 +109,8 @@ async def assignments_list(
     assignments = await db.execute(
         select(models.CourseMaterial)
         .options(
-            selectinload(models.CourseMaterial.submissions),
-            selectinload(models.CourseMaterial.group)
+            selectinload(models.CourseMaterial.group),
+            selectinload(models.CourseMaterial.submissions)
         )
         .where(and_(
             models.CourseMaterial.subject_id == subject_id,
@@ -123,12 +126,13 @@ async def assignments_list(
             "subject": subject,
             "assignments": assignments,
             "current_time": datetime.now(),
-            "current_user": current_user
+            "error": request.query_params.get("error"),
+            "success": request.query_params.get("success")
         }
     )
 
 
-@router.get("/{assignment_id}", response_class=HTMLResponse)
+@router.get("/{assignment_id}", response_class=HTMLResponse, name="assignment_detail")
 async def assignment_detail(
         request: Request,
         subject_id: int,
@@ -168,8 +172,8 @@ async def grade_submission(
     await get_subject_with_groups(db, subject_id, current_user)
 
     submission = await db.execute(
-        select(models.Submission)
-        .where(models.Submission.id == submission_id)
+        select(Submission)
+        .where(Submission.id == submission_id)
     )
     submission = submission.scalar()
 
@@ -234,10 +238,10 @@ async def submit_assignment(
 
     # Создание или обновление submission
     existing = await db.execute(
-        select(models.Submission)
+        select(Submission)
         .where(and_(
-            models.Submission.student_id == student.id,
-            models.Submission.assignment_id == assignment_id
+            Submission.student_id == student.id,
+            Submission.assignment_id == assignment_id
         ))
     )
     existing = existing.scalar()
@@ -260,3 +264,57 @@ async def submit_assignment(
         f"/subjects/{subject_id}/assignments",
         status_code=303
     )
+
+
+@router.post("/", response_class=RedirectResponse)
+async def create_assignment(
+        subject_id: int,
+        request: Request,
+        title: str = Form(...),
+        description: str = Form(None),
+        group_id: int = Form(...),
+        deadline: datetime = Form(...),
+        file: UploadFile = File(None),
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    try:
+        subject = await get_subject_with_groups(db, subject_id, current_user)
+
+        # Сохранение файла
+        file_path = None
+        if file and file.filename:
+            file_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}"
+            file_dir.mkdir(parents=True, exist_ok=True)
+
+            file_name = f"{uuid.uuid4()}{Path(file.filename).suffix}"
+            file_path = file_dir / file_name
+
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+        new_assignment = models.CourseMaterial(
+            title=title,
+            description=description,
+            type="assignment",
+            file_path=str(file_path) if file_path else None,
+            subject_id=subject_id,
+            group_id=group_id,
+            deadline=deadline,
+            created_at=datetime.now()
+        )
+
+        db.add(new_assignment)
+        await db.commit()
+
+        return RedirectResponse(
+            f"/subjects/{subject_id}/assignments?success={title}",
+            status_code=303
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating assignment: {str(e)}")
+        return RedirectResponse(
+            f"/subjects/{subject_id}/assignments?error={str(e)}",
+            status_code=303
+        )
