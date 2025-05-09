@@ -3,34 +3,94 @@
 {% block title %}Создать предмет{% endblock %}
 
 {% block content %}
-<div class="card shadow col-md-6 mx-auto">
-    <div class="card-header bg-success text-white">
-        <h4>Создание предмета</h4>
-    </div>
-    
-    <div class="card-body">
-        <form method="post">
-            <div class="mb-3">
-                <label class="form-label">Название</label>
-                <input type="text" class="form-control" name="name" required>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Описание</label>
-                <textarea class="form-control" name="description" rows="3"></textarea>
-            </div>
-            
-            <div class="mb-3">
-                <label class="form-label">Группы</label>
-                <select class="form-select" multiple name="groups">
-                    {% for group in groups %}
-                    <option value="{{ group.id }}">{{ group.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <button type="submit" class="btn btn-primary">Создать</button>
-        </form>
+<div class="container mt-4">
+    <div class="card shadow col-md-8 mx-auto">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="bi bi-journal-bookmark"></i> Создание нового предмета</h4>
+        </div>
+
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                <!-- Название предмета -->
+                <div class="mb-3">
+                    <label class="form-label">Название предмета</label>
+                    <input type="text"
+                           class="form-control"
+                           name="name"
+                           required
+                           placeholder="Введите название предмета">
+                </div>
+
+                <!-- Тип предмета -->
+                <div class="mb-3">
+                    <label class="form-label">Тип предмета</label>
+                    <select class="form-select" name="type" required>
+                        <option value="" disabled selected>Выберите тип предмета</option>
+                        <option value="lecture">Лекционный курс</option>
+                        <option value="practice">Практические занятия</option>
+                    </select>
+                </div>
+
+                <!-- Описание -->
+<!--                <div class="mb-3">-->
+<!--                    <label class="form-label">Описание</label>-->
+<!--                    <textarea class="form-control"-->
+<!--                              name="description"-->
+<!--                              rows="3"-->
+<!--                              placeholder="Добавьте описание предмета..."></textarea>-->
+<!--                </div>-->
+
+                <!-- Выбор групп -->
+                <div class="mb-4">
+                    <label class="form-label">Прикрепить к группам:</label>
+                    <div class="border p-3 rounded" style="max-height: 250px; overflow-y: auto;">
+                        <div class="row">
+                            {% for group in groups %}
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           name="groups"
+                                           value="{{ group.id }}"
+                                           id="group{{ group.id }}">
+                                    <label class="form-check-label d-flex align-items-center"
+                                           for="group{{ group.id }}">
+                                        <span class="badge bg-secondary me-2">Группа</span>
+                                        {{ group.number }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="text-muted">Нет доступных групп</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <small class="form-text text-muted">
+                        Выберите группы, которые будут изучать этот предмет
+                    </small>
+                </div>
+
+                <!-- Кнопки -->
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <a href="/subjects/my" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Отмена
+                    </a>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Создать предмет
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+
+<style>
+    .form-check-input:checked {
+        background-color: #198754;
+        border-color: #198754;
+    }
+    .form-control:focus, .form-select:focus, .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+    }
+</style>
 {% endblock %}

@@ -48,8 +48,11 @@ class SubjectBase(BaseModel):
     name: str = Field(..., max_length=100)
     type: Literal['lecture', 'practice']
 
-class SubjectCreate(SubjectBase):
-    pass
+class SubjectCreate(BaseModel):
+    name: str
+    # description: str
+    type: Literal["lecture", "practice"]  # Важно: должно совпадать с вариантами в форме
+    groups: list[int] = []
 
 class SubjectResponse(SubjectBase):
     id: int

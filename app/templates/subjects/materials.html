@@ -2,42 +2,119 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="card shadow">
-        <div class="card-header bg-primary text-white">
+    <!-- Список материалов -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h4 class="mb-0">
-                <i class="bi bi-cloud-upload me-2"></i>
-                Загрузка материалов
+                <i class="bi bi-file-earmark-richtext me-2"></i>
+                Материалы предмета: {{ subject.name }}
             </h4>
+            <a href="#uploadForm" class="btn btn-light btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>Добавить материал
+            </a>
         </div>
 
         <div class="card-body">
-            <!-- Простая форма -->
-            <form method="post" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <label class="form-label">Выберите файл</label>
-                    <input type="file"
-                           class="form-control"
-                           name="file"
-                           required>
-                </div>
+            {% if materials %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th scope="col">Название</th>
+                            <th scope="col">Тип</th>
+                            <th scope="col">Группа</th>
+                            <th scope="col">Файл</th>
+                            <th scope="col">Дата загрузки</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for material in materials %}
+                        <tr class="align-middle">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="bi
+                                        {% if material.type == 'lecture' %}bi-journal-text text-primary
+                                        {% elif material.type == 'practice' %}bi-pencil-square text-success
+                                        {% else %}bi-file-earmark-text text-warning{% endif %}
+                                        me-2 fs-5"></i>
+                                    {{ material.title }}
+                                </div>
+                                {% if material.description %}
+                                <div class="text-muted small mt-1">{{ material.description }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge
+                                    {% if material.type == 'lecture' %}bg-primary
+                                    {% elif material.type == 'practice' %}bg-success
+                                    {% else %}bg-warning text-dark{% endif %}">
+                                    {{ material.type|ru_type }}
+                                </span>
+                            </td>
+                            <td>{{ material.group.number }}</td>
+                            <td>
+                                <a href="/{{ material.file_path }}"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   download
+                                   title="Скачать файл">
+                                    <i class="bi bi-download me-1"></i>
+                                    {{ material.file_path|filename }}
+                                </a>
+                            </td>
+                            <td>{{ material.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="bi bi-inbox fs-1 text-muted"></i>
+                <p class="text-muted mt-3">Еще нет загруженных материалов</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
+    <!-- Форма загрузки -->
+    <div class="card shadow" id="uploadForm">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-cloud-upload me-2"></i>
+                Загрузка нового материала
+            </h5>
+        </div>
+
+        <div class="card-body">
+            <!-- Сообщения -->
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show">
+                {{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+
+            {% if success %}
+            <div class="alert alert-success alert-dismissible fade show">
+                Файл "{{ success }}" успешно загружен!
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+
+            <!-- Форма -->
+            <form method="post" enctype="multipart/form-data">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Тип материала</label>
-                        <select name="material_type"
-                                class="form-select"
-                                required>
-                            <option value="lecture">Лекция</option>
-                            <option value="practice">Практика</option>
-                            <option value="assignment">Задание</option>
+                        <select name="material_type" class="form-select" required>
+                            <option value="lecture">Лекционный материал</option>
+                            <option value="practice">Практическое задание</option>
                         </select>
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label">Группа</label>
-                        <select name="group_id"
-                                class="form-select"
-                                required>
+                        <label class="form-label">Для группы</label>
+                        <select name="group_id" class="form-select" required>
                             {% for group in groups %}
                             <option value="{{ group.id }}">{{ group.number }}</option>
                             {% endfor %}
@@ -45,28 +122,54 @@
                     </div>
 
                     <div class="col-12">
-                        <button type="submit"
-                                class="btn btn-success w-100">
+                        <label class="form-label">Название материала</label>
+                        <input type="text"
+                               name="title"
+                               class="form-control"
+                               placeholder="Введите название"
+                               required>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Описание (необязательно)</label>
+                        <textarea name="description"
+                                class="form-control"
+                                rows="2"
+                                placeholder="Добавьте описание материала"></textarea>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Файл материала</label>
+                        <input type="file"
+                               class="form-control"
+                               name="file"
+                               required
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+                        <div class="form-text">Поддерживаемые форматы: PDF, DOC, XLS, PPT</div>
+                    </div>
+
+                    <div class="col-12 mt-4">
+                        <button type="submit" class="btn btn-success w-100">
                             <i class="bi bi-upload me-2"></i>
-                            Загрузить
+                            Загрузить материал
                         </button>
                     </div>
                 </div>
             </form>
-
-            <!-- Секция с сообщениями -->
-            {% if error %}
-            <div class="alert alert-danger mt-3">
-                {{ error }}
-            </div>
-            {% endif %}
-
-            {% if success %}
-            <div class="alert alert-success mt-3">
-                Файл "{{ success }}" успешно загружен!
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
+
+<style>
+    .ru-type::after {
+        content: "";
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        background-color: currentColor;
+        margin: 0 0.3em;
+        opacity: 0.3;
+        vertical-align: middle;
+    }
+</style>
 {% endblock %}

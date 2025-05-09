@@ -72,6 +72,13 @@
                         <div class="card-header">
                             <h5 class="card-title mb-1">
                                 <i class="bi bi-book-half me-2"></i>{{ subject.name }}
+                                {% if subject.type == "Лекция" %}
+                                    <span class="badge bg-info ms-2">{{ subject.type }}</span>
+                                {% elif subject.type == "Практика" %}
+                                    <span class="badge bg-warning text-dark ms-2">{{ subject.type }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary ms-2">{{ subject.type }}</span>
+                                {% endif %}
                             </h5>
                         </div>
 
@@ -92,14 +99,19 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="btn-group">
                                     <a href="/subjects/{{ subject.id }}/materials"
-                                    class="btn btn-sm btn-outline-primary"
-                                    title="Добавить материалы">
-                                    <i class="bi bi-file-earmark-plus me-1"></i>Материалы
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="Просмотр материалов">
+                                       <i class="bi bi-folder2-open me-1"></i>Материалы
+                                    </a>
+                                    <a href="/subjects/{{ subject.id }}/assignments"
+                                       class="btn btn-sm btn-outline-success"
+                                       title="Просмотр заданий">
+                                       <i class="bi bi-card-checklist me-1"></i>Задания
                                     </a>
                                     <a href="/subjects/{{ subject.id }}"
-                                    class="btn btn-sm btn-outline-secondary"
-                                    title="Настройки предмета">
-                                    <i class="bi bi-gear-wide me-1"></i>Настройки
+                                       class="btn btn-sm btn-outline-secondary"
+                                       title="Управление предметом">
+                                       <i class="bi bi-gear-wide me-1"></i>Управление
                                     </a>
                                 </div>
                              </div>
@@ -124,7 +136,6 @@
 
 {% block scripts %}
 <script>
-// Пример скрипта для динамического обновления
 document.addEventListener('DOMContentLoaded', function() {
     // Инициализация тултипов
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))

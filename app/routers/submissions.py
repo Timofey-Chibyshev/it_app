@@ -1,44 +1,68 @@
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    Form,
+    status,
+    UploadFile,
+    File
+)
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.schemas.schemas import Submission, SubmissionCreate
-from app.models.models import Submission as DBSubmission, Assignment, User
-from app.database import get_db
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
+from pathlib import Path
+import sys
+import shutil
+import uuid
+# Добавляем путь к корневой директории проекта
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.resolve()))
+from datetime import datetime
+
+from app.models import models
+from app.schemas import schemas
+from app import database
 from app.auth import get_current_user
+from app.dependencies import templates
+import logging
+logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/submissions", tags=["submissions"])
+router = APIRouter(prefix="/subjects/{subject_id}/submissions", tags=["submissions"])
 
-@router.post("/", response_model=Submission)
-async def create_submission(
-    submission: SubmissionCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    # Проверка что студент имеет доступ к заданию
-    assignment = await db.get(Assignment, submission.assignment_id)
-    if not assignment or current_user not in assignment.subject.students:
-        raise HTTPException(403, "Нет доступа к этому заданию")
-    
-    db_submission = DBSubmission(
-        **submission.dict(),
-        student_id=current_user.id,
-        submitted_at=datetime.utcnow()
+async def get_subject_with_check(db: AsyncSession, subject_id: int, user: models.User):
+    subject = await db.execute(
+        select(models.Subject)
+        .options(selectinload(models.Subject.teacher))
+        .where(models.Subject.id == subject_id)
     )
-    db.add(db_submission)
-    await db.commit()
-    return db_submission
+    subject = subject.scalar()
 
-@router.get("/assignment/{assignment_id}", response_model=list[Submission])
-async def get_submissions(
-    assignment_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    if user.role != "teacher" or subject.teacher.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return subject
+
+@router.get("/{subject_id}/submissions", response_class=HTMLResponse)
+async def view_submissions(
+        subject_id: int,
+        request: Request,
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
 ):
-    # Проверка что преподаватель имеет доступ
-    assignment = await db.get(Assignment, assignment_id)
-    if not assignment or assignment.subject.teacher_id != current_user.id:
-        raise HTTPException(403, "Доступ запрещен")
-    
-    result = await db.execute(select(DBSubmission).where(DBSubmission.assignment_id == assignment_id))
-    return result.scalars().all()
+    subject = await get_subject_with_check(db, subject_id, current_user)
+
+    submissions = (await db.execute(
+        select(models.AssignmentSubmission)
+        .options(
+            selectinload(models.AssignmentSubmission.material),
+            selectinload(models.AssignmentSubmission.student))
+        .join(models.CourseMaterial)
+        .where(models.CourseMaterial.subject_id == subject_id)
+    )).scalars().all()
+
+    return templates.TemplateResponse(
+        "subjects/submissions.html",
+        {"request": request, "subject": subject, "submissions": submissions}
+    )
