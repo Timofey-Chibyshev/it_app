@@ -27,7 +27,7 @@ from app.auth import (
     templates,
 )
 from app.schemas.schemas import RefreshRequest, TokenPair, UserCreate, UserResponse
-from app.models.models import User, Student, Teacher
+from app.models.models import User, Student, Teacher, Group
 
 logger = logging.getLogger(__name__)
 
@@ -124,40 +124,41 @@ async def web_register(
         first_name: str = Form(...),
         last_name: str = Form(...),
         role: str = Form(...),
-        group: Optional[str] = Form(None),  # Добавляем поле группы
+        group: Optional[str] = Form(None),
         db: AsyncSession = Depends(get_db)
 ):
-    role_map = {
-        "Студент": "student",
-        "Преподаватель": "teacher"
-    }
-    role_value = role_map.get(role, role)
-    form_data = await request.form()  # Получаем все данные формы
+    form_data = await request.form()
 
     try:
-        # Проверка группы для студентов
-        if role_value == "student" and not group:
-            return templates.TemplateResponse(
-                "auth/register.html",
-                {
-                    "request": request,
-                    "error": "Для студентов необходимо указать номер группы",
-                    "form_data": dict(form_data)
-                }
+        # Валидация группы для студентов
+        if role == "student":
+            if not group or not group.strip():
+                return templates.TemplateResponse(
+                    "auth/register.html",
+                    {
+                        "request": request,
+                        "error": "Для студентов необходимо указать номер группы",
+                        "form_data": dict(form_data)
+                    }
+                )
+
+            # Поиск существующей группы
+            group = group.strip()
+            existing_group = await db.execute(
+                select(Group).where(Group.number == group)
             )
+            group_obj = existing_group.scalar()
 
-        # Валидация и создание пользователя
-        user_data = UserCreate(
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name,
-            role=role_value,
-            patronymic=None
-        )
+            # Создаем группу если не найдена
+            if not group_obj:
+                group_obj = Group(number=group)
+                db.add(group_obj)
+                await db.commit()
+                await db.refresh(group_obj)
 
+        # Проверка уникальности email
         existing_user = await db.execute(
-            select(User).where(User.email == user_data.email))
+            select(User).where(User.email == email))
         if existing_user.scalar():
             return templates.TemplateResponse(
                 "auth/register.html",
@@ -168,55 +169,36 @@ async def web_register(
                 }
             )
 
-        hashed_password = get_password_hash(user_data.password)
+        # Создание пользователя
+        hashed_password = get_password_hash(password)
         db_user = User(
-            email=user_data.email,
+            email=email,
             hashed_password=hashed_password,
-            first_name=user_data.first_name,
-            last_name=user_data.last_name,
-            role=user_data.role,
+            first_name=first_name,
+            last_name=last_name,
+            role=role,
             is_active=True
         )
-
         db.add(db_user)
-        await db.flush()
+        await db.flush()  # Получаем ID пользователя
 
-        # Создаем профиль с учетом группы
-        if db_user.role == "teacher":
-            teacher = Teacher(user_id=db_user.id, position="Преподаватель")
-            db.add(teacher)
-        elif db_user.role == "student":
-            # Добавляем проверку и сохранение группы
-            if not group:
-                await db.rollback()
-                return templates.TemplateResponse(
-                    "auth/register.html",
-                    {
-                        "request": request,
-                        "error": "Укажите номер группы",
-                        "form_data": dict(form_data)
-                    }
-                )
-
-            student = Student(user_id=db_user.id, group=group)  # Используем поле group
+        # Создание профиля
+        if role == "student":
+            student = Student(
+                user_id=db_user.id,
+                group_id=group_obj.id  # Используем созданную группу
+            )
             db.add(student)
+        elif role == "teacher":
+            teacher = Teacher(
+                user_id=db_user.id,
+                position="Преподаватель"
+            )
+            db.add(teacher)
 
         await db.commit()
-        await db.refresh(db_user)
-
         return RedirectResponse("/auth/login", status_code=302)
 
-    except ValidationError as e:
-        await db.rollback()
-        error_msg = ", ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
-        return templates.TemplateResponse(
-            "auth/register.html",
-            {
-                "request": request,
-                "error": f"Ошибка валидации: {error_msg}",
-                "form_data": dict(form_data)
-            }
-        )
     except Exception as e:
         await db.rollback()
         logger.error(f"Registration error: {str(e)}")
@@ -224,10 +206,11 @@ async def web_register(
             "auth/register.html",
             {
                 "request": request,
-                "error": "Ошибка регистрации",
+                "error": f"Ошибка регистрации: {str(e)}",
                 "form_data": dict(form_data)
             }
         )
+
 
 
 # ---------------------------

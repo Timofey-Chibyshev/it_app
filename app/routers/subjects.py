@@ -128,7 +128,11 @@ async def subjects_list_page(
         template = "subjects/teacher_list.html"
     else:
         for subject in subjects:
-            subject.active_assignments = [a for a in subject.assignments if a.is_active]
+            subject.active_assignments = [
+                material
+                for material in subject.materials
+                if material.type == 'assignment' and material.deadline > datetime.utcnow()
+            ]
         context.update({"template": "student"})
         template = "subjects/student_list.html"
 

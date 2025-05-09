@@ -266,6 +266,76 @@ async def submit_assignment(
     )
 
 
+@router.get("/{assignment_id}", response_class=HTMLResponse, name="assignment_detail")
+async def assignment_detail(
+        request: Request,
+        subject_id: int,
+        assignment_id: int,
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    try:
+        # Получаем предмет с проверкой прав
+        subject = await get_subject_with_groups(db, subject_id, current_user)
+
+        # Получаем задание с прикрепленными submissions
+        assignment = await get_assignment_with_submissions(db, assignment_id, current_user)
+
+        # Для студентов: проверка группы и получение submission
+        submission = None
+        if current_user.role == "student":
+            # Проверяем принадлежность студента к группе задания
+            student = (await db.execute(
+                select(models.Student)
+                .where(models.Student.user_id == current_user.id)
+            )).scalar()
+
+            if not student or student.group_id != assignment.group_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied"
+                )
+
+            # Ищем существующую работу студента
+            submission = (await db.execute(
+                select(Submission)
+                .where(and_(
+                    Submission.student_id == student.id,
+                    Submission.assignment_id == assignment_id
+                ))
+            )).scalar()
+
+        # Для преподавателей: проверка владения предметом
+        elif current_user.role == "teacher":
+            if subject.teacher.user_id != current_user.id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied"
+                )
+
+        return templates.TemplateResponse(
+            "assignments/detail.html",
+            {
+                "request": request,
+                "subject": subject,
+                "assignment": assignment,
+                "current_time": datetime.now(),
+                "submission": submission,
+                "current_user": current_user
+            }
+        )
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Assignment detail error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )
+
+
+
 @router.post("/", response_class=RedirectResponse)
 async def create_assignment(
         subject_id: int,

@@ -1,34 +1,50 @@
 {% extends "base.html" %}
 
-{% block title %}Мои дисциплины{% endblock %}
+{% block title %}Мои предметы{% endblock %}
 
-{% block student_content %}
-<div class="card shadow">
-    <div class="card-header bg-success text-white">
-        <h4 class="mb-0">Текущие дисциплины</h4>
-        <small>Группа: {{ current_user.group.name }}</small>
-    </div>
-    
-    <div class="card-body">
-        {% if subjects %}
-        <div class="list-group">
-            {% for subject in subjects %}
-            <a href="/subjects/{{ subject.id }}" 
-               class="list-group-item list-group-item-action">
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">{{ subject.name }}</h5>
-                    <span class="badge bg-primary rounded-pill">
-                        {{ subject.teacher.user.full_name }}
-                    </span>
+{% block content %}
+<div class="container mt-4">
+    <h1 class="h3 mb-4 text-gray-800">
+        <i class="bi bi-journal-bookmark-fill text-primary"></i>
+        Мои предметы
+    </h1>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for subject in subjects %}
+        <div class="col">
+            <div class="card h-100 border-left-primary shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-1">
+                        <i class="bi bi-book-half me-2"></i>{{ subject.name }}
+                        <span class="badge bg-secondary ms-2">{{ subject.type }}</span>
+                    </h5>
                 </div>
-                <p class="mb-1 text-muted">{{ subject.description }}</p>
-                <small>Активных заданий: {{ subject.active_assignments_count }}</small>
-            </a>
-            {% endfor %}
+
+                <div class="card-body">
+                    <div class="mb-3">
+                        <a href="/subjects/{{ subject.id }}/assignments"
+                           class="btn btn-sm btn-outline-primary w-100">
+                           <i class="bi bi-card-checklist me-1"></i>Задания
+                        </a>
+                    </div>
+
+                    <div class="alert alert-info p-2">
+                        <small>
+                            <i class="bi bi-info-circle me-1"></i>
+                            Активных заданий: {{ subject.active_assignments|length }}
+                        </small>
+                    </div>
+                </div>
+            </div>
         </div>
         {% else %}
-        <div class="alert alert-info">В вашей группе пока нет дисциплин</div>
-        {% endif %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-journal-x display-4 text-muted"></i>
+                <h5 class="text-gray-800 mt-3">Нет доступных предметов</h5>
+            </div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}
