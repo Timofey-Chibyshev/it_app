@@ -28,7 +28,6 @@ class User(Base):
     student_profile = relationship("Student", back_populates="user", uselist=False, cascade="all, delete-orphan")
     teacher_profile = relationship("Teacher", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
-
 class Student(Base):
     __tablename__ = 'students'
 
@@ -126,7 +125,7 @@ class Schedule(Base):
     end_time = Column(DateTime, nullable=False)  # Конец занятия
     subject_id = Column(Integer, ForeignKey('subjects.id'), nullable=False)  # Привязка к предмету
 
-    subject = relationship("Subject", back_populates="schedule")
+    subject = relationship("Subject", back_populates="schedule", lazy='selectin')
 
     # Проверка что end_time > start_time
     __table_args__ = (

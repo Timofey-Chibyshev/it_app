@@ -313,6 +313,7 @@ footer .text-muted {
 
 .toggle-password {
     position: absolute;
+    pointer-events: auto !important;
     right: 1.8rem;
     top: 50%;
     transform: translateY(-50%);
@@ -411,7 +412,6 @@ footer .text-muted {
     }
 }
 
-
 .navbar {
     padding: 1rem 1.5rem;
 }
@@ -423,4 +423,39 @@ footer .text-muted {
 
 main {
     padding-bottom: 3rem;
+}
+
+/* Schedule Table Styles */
+.table-hover tbody tr {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(43, 108, 176, 0.05);
+    transform: translateX(4px);
+}
+
+.table th {
+    background-color: var(--primary-color);
+    color: white;
+    border-bottom: 2px solid var(--secondary-color);
+}
+
+.badge {
+    padding: 0.5em 0.75em;
+    font-size: 0.9em;
+    letter-spacing: 0.5px;
+}
+
+.bg-info {
+    background-color: var(--secondary-color) !important;
+}
+
+.bg-warning {
+    background-color: #ecc94b !important;
+}
+
+.bg-success {
+    background-color: #48bb78 !important;
 }

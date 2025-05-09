@@ -27,7 +27,7 @@ from app.auth import (
     templates,
 )
 from app.schemas.schemas import RefreshRequest, TokenPair, UserCreate, UserResponse
-from app.models.models import User, Student, Teacher
+from app.models.models import Group, User, Student, Teacher
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,6 @@ async def login_page(request: Request, error: Optional[str] = None):
             "form_data": {}  # Пустой словарь для новых сессий
         }
     )
-
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request, error: Optional[str] = None):
@@ -115,7 +114,6 @@ async def web_login(
 
     return response
 
-
 @router.post("/register-form", response_class=HTMLResponse)
 async def web_register(
         request: Request,
@@ -124,40 +122,42 @@ async def web_register(
         first_name: str = Form(...),
         last_name: str = Form(...),
         role: str = Form(...),
-        group: Optional[str] = Form(None),  # Добавляем поле группы
+        group: Optional[str] = Form(None),
         db: AsyncSession = Depends(get_db)
 ):
-    role_map = {
-        "Студент": "student",
-        "Преподаватель": "teacher"
-    }
-    role_value = role_map.get(role, role)
-    form_data = await request.form()  # Получаем все данные формы
+    form_data = await request.form()
+    role_value = role  # Используем значение как есть из формы
 
     try:
         # Проверка группы для студентов
-        if role_value == "student" and not group:
-            return templates.TemplateResponse(
-                "auth/register.html",
-                {
-                    "request": request,
-                    "error": "Для студентов необходимо указать номер группы",
-                    "form_data": dict(form_data)
-                }
-            )
+        if role_value == "student":
+            if not group or not group.strip():
+                return templates.TemplateResponse(
+                    "auth/register.html",
+                    {
+                        "request": request,
+                        "error": "Для студентов необходимо указать номер группы",
+                        "form_data": dict(form_data)
+                    }
+                )
+            
+            # Очищаем и проверяем номер группы
+            group_number = group.strip()
+            print(group_number)
+            print(len(group_number))
+            print(group_number[0].isalpha())
+            if len(group_number) < 2:
+                return templates.TemplateResponse(
+                    "auth/register.html",
+                    {
+                        "request": request,
+                        "error": "Неверный формат номера группы",
+                        "form_data": dict(form_data)
+                    }
+                )
 
-        # Валидация и создание пользователя
-        user_data = UserCreate(
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name,
-            role=role_value,
-            patronymic=None
-        )
-
-        existing_user = await db.execute(
-            select(User).where(User.email == user_data.email))
+        # Проверка существующего пользователя
+        existing_user = await db.execute(select(User).where(User.email == email))
         if existing_user.scalar():
             return templates.TemplateResponse(
                 "auth/register.html",
@@ -168,37 +168,39 @@ async def web_register(
                 }
             )
 
-        hashed_password = get_password_hash(user_data.password)
+        # Создание пользователя
+        hashed_password = get_password_hash(password)
         db_user = User(
-            email=user_data.email,
+            email=email,
             hashed_password=hashed_password,
-            first_name=user_data.first_name,
-            last_name=user_data.last_name,
-            role=user_data.role,
+            first_name=first_name,
+            last_name=last_name,
+            role=role_value,
             is_active=True
         )
-
         db.add(db_user)
-        await db.flush()
+        await db.flush()  # Получаем ID пользователя
 
-        # Создаем профиль с учетом группы
-        if db_user.role == "teacher":
+        # Обработка ролей
+        if role_value == "teacher":
             teacher = Teacher(user_id=db_user.id, position="Преподаватель")
             db.add(teacher)
-        elif db_user.role == "student":
-            # Добавляем проверку и сохранение группы
-            if not group:
-                await db.rollback()
-                return templates.TemplateResponse(
-                    "auth/register.html",
-                    {
-                        "request": request,
-                        "error": "Укажите номер группы",
-                        "form_data": dict(form_data)
-                    }
-                )
+        elif role_value == "student":
+            # Поиск или создание группы
+            group_result = await db.execute(
+                select(Group).where(Group.number == group_number))
+            db_group = group_result.scalar()
 
-            student = Student(user_id=db_user.id, group=group)  # Используем поле group
+            if not db_group:
+                db_group = Group(number=group_number)
+                db.add(db_group)
+                await db.flush()  
+
+            # Создание студента с привязкой к группе
+            student = Student(
+                user_id=db_user.id,
+                group_id=db_group.id  
+            )
             db.add(student)
 
         await db.commit()
@@ -219,16 +221,15 @@ async def web_register(
         )
     except Exception as e:
         await db.rollback()
-        logger.error(f"Registration error: {str(e)}")
+        logger.error(f"Registration error: {str(e)}", exc_info=True)
         return templates.TemplateResponse(
             "auth/register.html",
             {
                 "request": request,
-                "error": "Ошибка регистрации",
+                "error": f"Ошибка регистрации: {str(e)}",
                 "form_data": dict(form_data)
             }
         )
-
 
 # ---------------------------
 # API Endpoints
