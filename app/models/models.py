@@ -96,6 +96,10 @@ class CourseMaterial(Base):
         CheckConstraint('deadline > CURRENT_TIMESTAMP', name='check_future_deadline'),
     )
 
+    @property
+    def is_active(self):
+        return self.deadline and self.deadline > datetime.utcnow()
+
 class AssignmentSubmission(Base):
     __tablename__ = 'assignment_submissions'
 

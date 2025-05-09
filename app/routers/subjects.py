@@ -1,4 +1,3 @@
-
 from fastapi import (
     APIRouter,
     Depends,
@@ -57,7 +56,11 @@ async def get_my_subjects(
     student = (await db.execute(
         select(models.Student)
         .where(models.Student.user_id == current_user.id)
-        .options(selectinload(models.Student.group))
+        .options(
+            selectinload(models.Student.group)
+            .selectinload(models.Group.subjects)  # Явно загружаем subjects группы
+            .selectinload(models.Subject.materials)  # И их материалы
+        )
     )).scalar()
 
     if not student or not student.group:
@@ -112,6 +115,19 @@ async def subjects_list_page(
         current_user: models.User = Depends(get_current_user)
 ):
     subjects = await get_my_subjects(db, current_user)
+    current_time = datetime.utcnow()
+
+    if current_user.role == "student":
+        # Для каждого предмета находим активные задания
+        for subject in subjects:
+            active_assignments = []
+            # Предварительно загружаем материалы
+            await db.execute(select(models.Subject).where(models.Subject.id == subject.id).options(selectinload(models.Subject.materials)))
+            for material in subject.materials:
+                if material.type == 'assignment' and material.deadline > current_time:
+                    active_assignments.append(material)
+            subject.active_assignments = active_assignments
+            subject.active_assignments_count = len(active_assignments)
 
     context = {
         "request": request,
@@ -127,9 +143,10 @@ async def subjects_list_page(
         })
         template = "subjects/teacher_list.html"
     else:
-        for subject in subjects:
-            subject.active_assignments = [a for a in subject.assignments if a.is_active]
-        context.update({"template": "student"})
+        context.update({
+            "template": "student",
+            "current_time": current_time
+        })
         template = "subjects/student_list.html"
 
     return templates.TemplateResponse(template, context)
