@@ -3,177 +3,150 @@
 {% block content %}
 <div class="container mt-4">
     <div class="card shadow">
-        <div class="card-header {% if current_user.role == 'teacher' %}bg-primary{% else %}bg-success{% endif %} text-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">
-                    <i class="bi bi-file-earmark-text me-2"></i>
-                    {{ assignment.title }}
-                </h4>
-                <div>
-                    <span class="badge bg-{% if assignment.deadline > current_time %}success{% else %}danger{% endif %}">
-                        Дедлайн: {{ assignment.deadline.strftime('%d.%m.%Y %H:%M') }}
-                    </span>
-                </div>
-            </div>
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">
+                <i class="bi bi-journal-check me-2"></i>
+                {{ assignment.title }}
+                <span class="badge bg-secondary float-end">
+                    Группа {{ assignment.group.number }}
+                </span>
+            </h4>
         </div>
 
         <div class="card-body">
-            {% if current_user.role == 'teacher' %}
-            <!-- Преподавательский интерфейс -->
+            <!-- Информация о задании -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Описание задания</h5>
+                    <p class="text-muted">{{ assignment.description or "Нет описания" }}</p>
+
+                    {% if assignment.file_path %}
+                    <a href="{{ assignment.file_path }}"
+                       class="btn btn-outline-primary"
+                       download>
+                        <i class="bi bi-download me-2"></i>
+                        Скачать материалы задания
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-danger">
+                        <div class="card-body">
+                            <h5 class="card-title text-danger">
+                                <i class="bi bi-clock-history me-2"></i>
+                                Дедлайн
+                            </h5>
+                            <p class="card-text">
+                                {{ assignment.deadline.strftime('%d.%m.%Y %H:%M') }}
+                                {% if assignment.deadline < current_time %}
+                                <span class="badge bg-danger ms-2">Просрочено</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Список работ студентов -->
+            <h5 class="mb-3">Сданные работы</h5>
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover">
                     <thead>
                         <tr>
                             <th>Студент</th>
-                            <th>Статус</th>
-                            <th>Работа</th>
+                            <th>Файл работы</th>
+                            <th>Дата сдачи</th>
                             <th>Оценка</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for student in assignment.group.students %}
-                        {% set submission = assignment.submissions|selectattr('student_id', '==', student.id)|first %}
+                        {% for submission in assignment.submissions %}
                         <tr>
-                            <td>{{ student.user.full_name }}</td>
+                            <td>{{ submission.student.user.full_name }}</td>
                             <td>
-                                {% if submission %}
-                                    <span class="badge bg-success">
-                                        {{ submission.submitted_at.strftime('%d.%m.%Y %H:%M') }}
-                                    </span>
-                                {% else %}
-                                    <span class="badge bg-secondary">Не сдано</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if submission %}
-                                <a href="/{{ submission.file_path }}"
+                                {% if submission.file_path %}
+                                <a href="{{ submission.file_path }}"
                                    class="btn btn-sm btn-outline-secondary"
                                    download>
                                     <i class="bi bi-download me-1"></i>
-                                    {{ submission.file_path|filename }}
+                                    Скачать
                                 </a>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if submission and submission.grade is not none %}
-                                    {{ submission.grade }}/100
                                 {% else %}
-                                    <span class="text-muted">-</span>
+                                <span class="text-muted">Нет файла</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if submission %}
+                                {{ submission.submitted_at.strftime('%d.%m.%Y %H:%M') }}
+                            </td>
+                            <td>
+                                {% if submission.grade %}
+                                <span class="badge bg-success">{{ submission.grade }}</span>
+                                {% else %}
+                                <span class="text-muted">Не оценено</span>
+                                {% endif %}
+                            </td>
+                            <td>
                                 <button type="button"
-                                        class="btn btn-sm btn-outline-primary"
+                                        class="btn btn-sm btn-warning"
                                         data-bs-toggle="modal"
                                         data-bs-target="#gradeModal{{ submission.id }}">
                                     <i class="bi bi-pencil-square"></i>
                                 </button>
-                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                Нет сданных работ
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-
-            <!-- Модальные окна оценки -->
-            {% for submission in assignment.submissions %}
-            <div class="modal fade" id="gradeModal{{ submission.id }}" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <form method="post"
-                              action="/subjects/{{ subject.id }}/assignments/{{ assignment.id }}/grade">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Оценка работы</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <input type="hidden" name="submission_id" value="{{ submission.id }}">
-                                <div class="mb-3">
-                                    <label class="form-label">Оценка (0-100)</label>
-                                    <input type="number"
-                                           name="grade"
-                                           class="form-control"
-                                           min="0"
-                                           max="100"
-                                           value="{{ submission.grade or '' }}"
-                                           required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Комментарий</label>
-                                    <textarea name="feedback"
-                                            class="form-control"
-                                            rows="3">{{ submission.feedback or '' }}</textarea>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                                <button type="submit" class="btn btn-primary">Сохранить</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-
-            {% else %}
-            <!-- Студенческий интерфейс -->
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="mb-4">
-                        <h5>Описание задания</h5>
-                        <p class="text-muted">{{ assignment.description or "Нет описания" }}</p>
-                    </div>
-
-                    {% set submission = assignment.submissions|selectattr('student_id', '==', student.id)|first %}
-                    {% if submission %}
-                    <div class="alert alert-success">
-                        <h5><i class="bi bi-check-circle me-2"></i>Работа сдана</h5>
-                        <p class="mb-0">
-                            Сдано: {{ submission.submitted_at.strftime('%d.%m.%Y %H:%M') }}
-                            {% if submission.grade is not none %}
-                            <br>Оценка: {{ submission.grade }}/100
-                            {% endif %}
-                        </p>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <div class="col-md-4">
-                    <div class="card shadow">
-                        <div class="card-header bg-secondary text-white">
-                            <h5 class="mb-0"><i class="bi bi-upload me-2"></i>Сдача работы</h5>
-                        </div>
-                        <div class="card-body">
-                            <form method="post"
-                                  action="/subjects/{{ subject.id }}/assignments/{{ assignment.id }}/submit"
-                                  enctype="multipart/form-data">
-                                <div class="mb-3">
-                                    <label class="form-label">Файл работы</label>
-                                    <input type="file"
-                                           class="form-control"
-                                           name="file"
-                                           required
-                                           accept=".pdf,.doc,.docx,.zip">
-                                </div>
-                                <button type="submit"
-                                        class="btn btn-success w-100"
-                                        {% if assignment.deadline < current_time %}disabled{% endif %}>
-                                    <i class="bi bi-upload me-2"></i>
-                                    {% if submission %}Перезагрузить{% else %}Сдать работу{% endif %}
-                                </button>
-                                {% if assignment.deadline < current_time %}
-                                <div class="text-danger small mt-2">Срок сдачи истёк</div>
-                                {% endif %}
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
+
+<!-- Модальные окна для оценки -->
+{% for submission in assignment.submissions %}
+<div class="modal fade" id="gradeModal{{ submission.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="/subjects/{{ subject_id }}/assignments/{{ assignment.id }}/grade">
+                <div class="modal-header">
+                    <h5 class="modal-title">Оценить работу</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="submission_id" value="{{ submission.id }}">
+
+                    <div class="mb-3">
+                        <label class="form-label">Оценка</label>
+                        <input type="number"
+                               name="grade"
+                               class="form-control"
+                               min="0"
+                               max="100"
+                               required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Комментарий</label>
+                        <textarea name="feedback"
+                                class="form-control"
+                                rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}

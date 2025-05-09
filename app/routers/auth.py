@@ -27,6 +27,7 @@ from app.auth import (
     templates,
 )
 from app.schemas.schemas import RefreshRequest, TokenPair, UserCreate, UserResponse
+
 from app.models.models import Group, User, Student, Teacher
 
 logger = logging.getLogger(__name__)
@@ -126,11 +127,14 @@ async def web_register(
         db: AsyncSession = Depends(get_db)
 ):
     form_data = await request.form()
+
     role_value = role  # Используем значение как есть из формы
 
     try:
         # Проверка группы для студентов
         if role_value == "student":
+
+
             if not group or not group.strip():
                 return templates.TemplateResponse(
                     "auth/register.html",
@@ -140,6 +144,7 @@ async def web_register(
                         "form_data": dict(form_data)
                     }
                 )
+
             
             # Очищаем и проверяем номер группы
             group_number = group.strip()
@@ -158,6 +163,7 @@ async def web_register(
 
         # Проверка существующего пользователя
         existing_user = await db.execute(select(User).where(User.email == email))
+
         if existing_user.scalar():
             return templates.TemplateResponse(
                 "auth/register.html",
@@ -175,11 +181,11 @@ async def web_register(
             hashed_password=hashed_password,
             first_name=first_name,
             last_name=last_name,
+
             role=role_value,
-            is_active=True
-        )
-        db.add(db_user)
-        await db.flush()  # Получаем ID пользователя
+
+            role=role,
+
 
         # Обработка ролей
         if role_value == "teacher":
@@ -200,25 +206,19 @@ async def web_register(
             student = Student(
                 user_id=db_user.id,
                 group_id=db_group.id  
+
             )
             db.add(student)
+        elif role == "teacher":
+            teacher = Teacher(
+                user_id=db_user.id,
+                position="Преподаватель"
+            )
+            db.add(teacher)
 
         await db.commit()
-        await db.refresh(db_user)
-
         return RedirectResponse("/auth/login", status_code=302)
 
-    except ValidationError as e:
-        await db.rollback()
-        error_msg = ", ".join([f"{err['loc'][0]}: {err['msg']}" for err in e.errors()])
-        return templates.TemplateResponse(
-            "auth/register.html",
-            {
-                "request": request,
-                "error": f"Ошибка валидации: {error_msg}",
-                "form_data": dict(form_data)
-            }
-        )
     except Exception as e:
         await db.rollback()
         logger.error(f"Registration error: {str(e)}", exc_info=True)
@@ -230,6 +230,7 @@ async def web_register(
                 "form_data": dict(form_data)
             }
         )
+
 
 # ---------------------------
 # API Endpoints
