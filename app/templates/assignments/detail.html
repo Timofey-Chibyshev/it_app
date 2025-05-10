@@ -31,9 +31,9 @@
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card border-{% if assignment.deadline > current_time %}success{% else %}danger{% endif %}">
+                    <div class="card border-{% if assignment.deadline > current_time %}success{% else %}{% if current_user.role == 'teacher' %}warning{% else %}danger{% endif %}{% endif %}">
                         <div class="card-body">
-                            <h5 class="card-title text-{% if assignment.deadline > current_time %}success{% else %}danger{% endif %}">
+                            <h5 class="card-title text-{% if assignment.deadline > current_time %}success{% else %}{% if current_user.role == 'teacher' %}warning{% else %}danger{% endif %}{% endif %}">
                                 <i class="bi bi-clock me-2"></i>
                                 Срок сдачи
                             </h5>
@@ -41,10 +41,14 @@
                                 <span>
                                     {{ assignment.deadline.strftime('%d.%m.%Y %H:%M') }}
                                     {% if assignment.deadline < current_time %}
-                                    <span class="badge bg-danger ms-2">Просрочено</span>
+                                        {% if current_user.role == 'teacher' %}
+                                        <span class="badge bg-warning ms-2">Срок сдачи закончен</span>
+                                        {% else %}
+                                        <span class="badge bg-danger ms-2">Просрочено</span>
+                                        {% endif %}
                                     {% endif %}
                                 </span>
-                                <span class="badge bg-{% if assignment.deadline > current_time %}primary{% else %}secondary{% endif %}">
+                                <span class="badge bg-{% if assignment.deadline > current_time %}primary{% else %}{% if current_user.role == 'teacher' %}warning{% else %}secondary{% endif %}{% endif %}">
                                     Осталось:
                                     {{ (assignment.deadline - current_time)|time_left }}
                                 </span>

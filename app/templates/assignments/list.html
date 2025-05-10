@@ -30,7 +30,7 @@
                     </thead>
                     <tbody>
                         {% for assignment in assignments %}
-                        <tr class="{% if assignment.deadline < current_time %}table-danger{% endif %}">
+                        <tr class="{% if assignment.deadline < current_time %}{% if current_user.role == 'teacher' %}table-warning{% else %}table-danger{% endif %}{% endif %}">
                             <td>
                                 <div class="d-flex flex-column">
                                     <div class="fw-medium mb-1">
@@ -53,7 +53,11 @@
                                         {{ assignment.deadline.strftime('%H:%M') }}
                                     </span>
                                     {% if assignment.deadline < current_time %}
-                                    <span class="badge bg-danger mt-1">Просрочено</span>
+                                        {% if current_user.role == 'teacher' %}
+                                        <span class="badge bg-warning mt-1">Срок сдачи закончен</span>
+                                        {% else %}
+                                        <span class="badge bg-danger mt-1">Просрочено</span>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </td>

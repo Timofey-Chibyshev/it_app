@@ -2,15 +2,18 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from datetime import datetime, timedelta
 import logging
+from .filters import time_left, filename  # Перенесем импорт сюда
 
 logger = logging.getLogger(__name__)
 
-# Инициализируем шаблоны ДО создания фильтров
+# Инициализация шаблонов ОДИН РАЗ
 templates = Jinja2Templates(directory="app/templates")
+
 
 def configure_jinja_filters():
     logger.info("Configuring Jinja2 filters")
-    
+
+    # Ваши кастомные фильтры
     def datetime_filter(value, fmt="%d.%m.%Y %H:%M"):
         if isinstance(value, datetime):
             return value.strftime(fmt)
@@ -31,27 +34,23 @@ def configure_jinja_filters():
             logger.error(f"Error in auditory filter: {str(e)}")
             return "Ауд. 000"
 
-    # Явная регистрация фильтров
-    templates.env.filters["datetime_format"] = datetime_filter
-    templates.env.filters["duration_format"] = duration_filter
-    templates.env.filters["auditory_from_group"] = auditory_filter
-    templates.env.filters["filename"] = lambda path: Path(path).name
-    templates.env.filters["ru_type"] = lambda t: {"lecture": "Лекция", "practice": "Практика"}.get(t, t)
+    # Регистрация ВСЕХ фильтров в одном месте
+    templates.env.filters.update({
+        "datetime_format": datetime_filter,
+        "duration_format": duration_filter,
+        "auditory_from_group": auditory_filter,
+        "filename": lambda path: Path(path).name,
+        "ru_type": lambda t: {"lecture": "Лекция", "practice": "Практика"}.get(t, t),
+        "time_left": time_left,
+        "ru_status": lambda s: {
+            'submitted': 'Отправлено',
+            'graded': 'Оценено',
+            'rejected': 'Отклонено'
+        }.get(s, s)
+    })
 
     logger.info("Jinja2 filters configured successfully")
 
-# Вызываем сразу при импорте
+
+# Инициализируем фильтры сразу
 configure_jinja_filters()
-
-
-from .filters import time_left, filename
-
-templates = Jinja2Templates(directory="app/templates")
-templates.env.filters["time_left"] = time_left
-templates.env.filters["filename"] = filename
-
-templates.env.filters['ru_status'] = lambda s: {
-    'submitted': 'Отправлено',
-    'graded': 'Оценено',
-    'rejected': 'Отклонено'
-}.get(s, s)
