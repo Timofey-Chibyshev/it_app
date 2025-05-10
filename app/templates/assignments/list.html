@@ -96,12 +96,12 @@
 
                             <td>
                                 {% if assignment.file_path %}
-                                <a href="{{ assignment.file_path }}"
+                                <a href="/subjects/{{ subject.id }}/assignments/download/{{ assignment.id }}"
                                    class="btn btn-sm btn-outline-secondary"
                                    download
                                    title="Скачать файл задания">
                                     <i class="bi bi-download me-1"></i>
-                                    {{ assignment.file_path|filename }}
+                                    {{ assignment.title }}{{ assignment.file_path|file_extension }}
                                 </a>
                                 {% else %}
                                 <span class="text-muted small">Нет файла</span>
@@ -144,6 +144,20 @@
         </div>
 
         <div class="card-body">
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show">
+                {{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+
+            {% if success %}
+            <div class="alert alert-success alert-dismissible fade show">
+                {{ success }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+
             <form method="post" enctype="multipart/form-data">
                 <div class="row g-3">
                     <div class="col-md-6">

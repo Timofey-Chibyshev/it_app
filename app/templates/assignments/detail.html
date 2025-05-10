@@ -20,11 +20,11 @@
                     <p class="text-muted">{{ assignment.description or "Нет описания" }}</p>
 
                     {% if assignment.file_path %}
-                    <a href="{{ assignment.file_path }}"
+                    <a href="/subjects/{{ subject.id }}/assignments/download/{{ assignment.id }}"
                        class="btn btn-outline-primary"
                        download>
                         <i class="bi bi-download me-2"></i>
-                        Материалы задания
+                        {{ assignment.title }}{{ assignment.file_path|file_extension }}
                     </a>
                     {% endif %}
                 </div>
@@ -79,11 +79,11 @@
                                 <td>{{ submission.student.user.full_name }}</td>
                                 <td class="text-muted small">{{ submission.student.group.number }}</td>
                                 <td>
-                                    <a href="{{ submission.file_path }}"
+                                    <a href="/subjects/{{ subject.id }}/assignments/submissions/{{ submission.id }}/download"
                                        class="btn btn-sm btn-outline-secondary"
                                        download>
                                         <i class="bi bi-download me-1"></i>
-                                        {{ submission.file_path|filename }}
+                                        Работа {{ submission.student.user.full_name }}{{ submission.file_path|file_extension }}
                                     </a>
                                 </td>
                                 <td>{{ submission.submission_date.strftime('%d.%m.%Y %H:%M') }}</td>
@@ -131,7 +131,7 @@
                                     <strong>Сдано:</strong>
                                     {{ user_submission.submission_date.strftime('%d.%m.%Y %H:%M') }}
                                 </div>
-                                <a href="{{ user_submission.file_path }}"
+                                <a href="/subjects/{{ subject.id }}/assignments/submissions/{{ user_submission.id }}/download"
                                    class="btn btn-sm btn-outline-success"
                                    download>
                                     <i class="bi bi-download me-1"></i>
