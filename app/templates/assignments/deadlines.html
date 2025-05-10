@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Мои дедлайны{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-primary">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Актуальные дедлайны
+        </h1>
+        <div>
+            <a href="/home" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left-circle me-2"></i>
+                На главную
+            </a>
+            <button class="btn btn-secondary" onclick="window.location.reload()">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle table-deadlines">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Предмет</th>
+                            <th>Задание</th>
+                            <th class="text-end">Срок сдачи</th>
+                            <th>Статус</th>
+                            <th class="text-center">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assignment in assignments %}
+                        <tr class="{% if assignment.deadline < current_time %}table-danger{% else %}table-warning{% endif %}">
+                            <td>
+                                <a href="/subjects/{{ assignment.subject.id }}/materials" 
+                                   class="text-decoration-none link-primary fw-bold">
+                                    {{ assignment.subject.name }}
+                                </a>
+                            </td>
+                            <td>{{ assignment.title }}</td>
+                            <td class="text-end">
+                                <div class="fw-bold">
+                                    {{ assignment.deadline|datetime_format("%d.%m.%Y") }}
+                                </div>
+                                <div class="text-muted small">
+                                    {{ assignment.deadline|datetime_format("%H:%M") }}
+                                </div>
+                            </td>
+                            <td>
+                                {% set submission = assignment.submissions|first %}
+                                {% if submission %}
+                                <div class="d-flex flex-column">
+                                    <span class="badge bg-success mb-1">
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        Сдано
+                                    </span>
+                                    {% if submission.grade %}
+                                    <span class="badge bg-info">
+                                        Оценка: {{ submission.grade }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    Не сдано
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if assignment.deadline > current_time %}
+                                <a href="/subjects/{{ assignment.subject.id }}/assignments/{{ assignment.id }}" 
+                                   class="btn btn-sm btn-primary">
+                                    <i class="bi bi-upload me-1"></i>
+                                    Отправить
+                                </a>
+                                {% else %}
+                                <span class="text-muted small">Просрочено</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="bi bi-emoji-smile fs-4 me-2"></i>
+                                Поздравляем! Все актуальные задания сданы вовремя
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

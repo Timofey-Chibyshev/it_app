@@ -459,3 +459,86 @@ main {
 .bg-success {
     background-color: #48bb78 !important;
 }
+
+/* Стили для сортировки */
+th[data-sort] {
+    position: relative;
+    padding-right: 25px !important;
+    transition: background-color 0.3s ease;
+    cursor: pointer;
+}
+
+th[data-sort]::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    opacity: 0.3;
+    font-size: 0.8em;
+    transition: opacity 0.3s ease;
+}
+
+th[data-sort]:hover::after {
+    opacity: 0.8;
+}
+
+th.asc::after {
+    content: '▲';
+    color: white !important;
+    opacity: 1 !important;
+}
+
+th.desc::after {
+    content: '▼';
+    color: white !important;
+    opacity: 1 !important;
+}
+
+.sortable-table th {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+/* Ссылки в таблице */
+.table-hover tbody tr td a {
+    transition: all 0.2s ease;
+    text-decoration: none !important;
+    color: var(--primary-color) !important;
+}
+
+.table-hover tbody tr td a:hover {
+    color: var(--secondary-color) !important;
+    transform: translateX(3px);
+}
+
+.table-hover tbody tr td a i {
+    transition: transform 0.2s ease;
+}
+
+.table-hover tbody tr td a:hover i {
+    transform: scale(1.2);
+}
+
+/* Дедлайны */
+.table-deadlines td, .table-deadlines th {
+    vertical-align: middle;
+}
+
+.table-deadlines .table-danger td {
+    opacity: 0.6;
+}
+
+.table-deadlines .table-warning {
+    background: rgba(255, 193, 7, 0.05);
+}
+
+.table-deadlines .badge {
+    font-size: 0.85em;
+    padding: 0.5em 0.8em;
+    border-radius: 8px;
+}
+
+.table-deadlines .btn-sm {
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}

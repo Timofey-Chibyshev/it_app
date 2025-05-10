@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import sys
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from app.schemas import schemas
 from app.models import models
 from app import database
 from app.auth import get_current_user
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import selectinload
 from app.dependencies import templates
 
@@ -47,42 +48,6 @@ async def view_schedule(
             "current_user": current_user
         }
     )
-
-@router.get("/deadlines", response_model=list[schemas.DeadlineResponse])
-async def get_deadlines(
-    db: AsyncSession = Depends(database.get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    # Явная загрузка профиля студента
-    if current_user.role == "student":
-        result = await db.execute(
-            select(models.User)
-            .options(selectinload(models.User.student_profile))
-            .where(models.User.id == current_user.id)
-        )
-        user = result.scalar()
-        if not user.student_profile or not user.student_profile.group_id:
-            raise HTTPException(status_code=403, detail="Student has no group")
-        
-        group_id = user.student_profile.group_id
-
-    # Базовый запрос
-    query = select(models.CourseMaterial).where(
-        models.CourseMaterial.deadline.isnot(None)
-    )
-
-    # Фильтрация для студента
-    if current_user.role == "student":
-        query = query.where(models.CourseMaterial.group_id == group_id)
-    
-    # Фильтрация для преподавателя
-    elif current_user.role == "teacher":
-        query = query.join(models.Subject).where(
-            models.Subject.teacher_id == current_user.id
-        )
-
-    result = await db.execute(query)
-    return result.scalars().all()
 
 async def get_schedule(db: AsyncSession, current_user: models.User):
     if current_user.role == "student":
@@ -166,3 +131,49 @@ async def get_schedule_api(
             .where(models.Subject.teacher_id == current_user.id)
         )
         return result.scalars().all()
+    
+@router.get("/deadlines", response_class=HTMLResponse)
+async def student_deadlines(
+    request: Request,
+    db: AsyncSession = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role != "student":
+        raise HTTPException(403, "Forbidden")
+
+    # Получаем студента и его группу
+    student = await db.execute(
+        select(models.Student)
+        .options(selectinload(models.Student.group))
+        .where(models.Student.user_id == current_user.id)
+    )
+    student = student.scalar()
+    
+    if not student:
+        raise HTTPException(404, "Student not found")
+
+    # Получаем все задания для группы студента
+    assignments = await db.execute(
+        select(models.CourseMaterial)
+        .options(
+            selectinload(models.CourseMaterial.subject),
+            selectinload(models.CourseMaterial.submissions)
+        )
+        .where(and_(
+            models.CourseMaterial.group_id == student.group_id,
+            models.CourseMaterial.type == "assignment",
+            models.CourseMaterial.deadline > datetime.now() - timedelta(days=7)
+        ))
+        .order_by(models.CourseMaterial.deadline.asc())
+    )
+    assignments = assignments.scalars().all()
+
+    return templates.TemplateResponse(
+        "assignments/deadlines.html",
+        {
+            "request": request,
+            "assignments": assignments,
+            "current_time": datetime.now(),
+            "current_user": current_user
+        }
+    )

@@ -18,41 +18,58 @@
     <div class="card shadow-sm">
         <div class="card-body p-4">
             {% if current_user.role == "teacher" %}
-                <!-- Расписание для преподавателя -->
+                <!-- Для преподавателя -->
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                    <table class="table table-hover align-middle sortable-table">
                         <thead class="table-light">
                             <tr>
-                                <th>Дата и время</th>
-                                <th>Предмет</th>
-                                <th>Тип занятия</th>
-                                <th>Группы</th>
-                                <th>Длительность</th>
+                                <th data-sort="date">Дата</th>
+                                <th data-sort="time">Время</th>
+                                <th data-sort="subject">Предмет</th>
+                                <th data-sort="type">Тип</th>
+                                <th data-sort="groups">Группы</th>
+                                <th data-sort="duration">Длительность</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for schedule in schedules %}
                             <tr>
-                                <td>
-                                    <div class="fw-bold">{{ schedule.start_time|datetime_format("%d.%m.%Y") }}</div>
-                                    <div class="text-muted">{{ schedule.start_time|datetime_format("%H:%M") }} - {{ schedule.end_time|datetime_format("%H:%M") }}</div>
+                                <td data-sort-value="{{ schedule.start_time.timestamp() }}">
+                                    <div class="fw-bold">
+                                        {{ schedule.start_time|datetime_format("%d.%m.%Y") }}
+                                        <span class="text-muted">({{ schedule.start_time|weekday }})</span>
+                                    </div>
                                 </td>
-                                <td>{{ schedule.subject.name }}</td>
                                 <td>
+                                    <div class="text-muted">
+                                        {{ schedule.start_time|datetime_format("%H:%M") }} - 
+                                        {{ schedule.end_time|datetime_format("%H:%M") }}
+                                    </div>
+                                </td>
+                                <td data-sort-value="{{ schedule.subject.name|lower }}">
+                                    <a href="/subjects/{{ schedule.subject.id }}/materials/" 
+                                       class="text-decoration-none link-primary d-flex align-items-center">
+                                        <i class="bi bi-journal-text me-2"></i>
+                                        <span>{{ schedule.subject.name }}</span>
+                                    </a>
+                                </td>
+                                <td data-sort-value="{{ schedule.subject.type|lower }}">
                                     <span class="badge bg-{{ 'info' if schedule.subject.type == 'lecture' else 'warning' }}">
-                                        {{ 'Лекция' if schedule.subject.type == 'lecture' else 'Практика' }}
+                                        {{ schedule.subject.type|ru_type }}
                                     </span>
                                 </td>
-                                <td>
+                                <td data-sort-value="{{ schedule.subject.groups|length }}">
                                     {% for group in schedule.subject.groups %}
                                         <span class="badge bg-secondary me-1">{{ group.number }}</span>
                                     {% endfor %}
                                 </td>
-                                <td>{{ (schedule.end_time - schedule.start_time)|duration_format }}</td>
+                                <td data-sort-value="{{ (schedule.end_time - schedule.start_time).total_seconds() }}">
+                                    {{ (schedule.end_time - schedule.start_time)|duration_format }}
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
+                                <td colspan="6" class="text-center text-muted py-4">
                                     Нет запланированных занятий
                                 </td>
                             </tr>
@@ -62,32 +79,50 @@
                 </div>
 
             {% else %}
-                <!-- Расписание для студента -->
+                <!-- Для студента -->
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
+                    <table class="table table-hover align-middle sortable-table">
                         <thead class="table-light">
                             <tr>
-                                <th>Дата и время</th>
-                                <th>Предмет</th>
-                                <th>Тип занятия</th>
-                                <th>Преподаватель</th>
+                                <th data-sort="date">Дата</th>
+                                <th data-sort="time">Время</th>
+                                <th data-sort="subject">Предмет</th>
+                                <th data-sort="type">Тип</th>
+                                <th data-sort="teacher">Преподаватель</th>
                                 <th>Аудитория</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for schedule in schedules %}
                             <tr>
-                                <td>
-                                    <div class="fw-bold">{{ schedule.start_time|datetime_format("%d.%m.%Y") }}</div>
-                                    <div class="text-muted">{{ schedule.start_time|datetime_format("%H:%M") }} - {{ schedule.end_time|datetime_format("%H:%M") }}</div>
+                                <td data-sort-value="{{ schedule.start_time.timestamp() }}">
+                                    <div class="fw-bold">
+                                        {{ schedule.start_time|datetime_format("%d.%m.%Y") }}
+                                        <span class="text-muted">({{ schedule.start_time|weekday }})</span>
+                                    </div>
                                 </td>
-                                <td>{{ schedule.subject.name }}</td>
                                 <td>
+                                    <div class="text-muted">
+                                        {{ schedule.start_time|datetime_format("%H:%M") }} - 
+                                        {{ schedule.end_time|datetime_format("%H:%M") }}
+                                    </div>
+                                </td>
+                                <td data-sort-value="{{ schedule.subject.name|lower }}">
+                                    <a href="/subjects/{{ schedule.subject.id }}/materials/" 
+                                       class="text-decoration-none link-primary d-flex align-items-center">
+                                        <i class="bi bi-journal-text me-2"></i>
+                                        <span>{{ schedule.subject.name }}</span>
+                                    </a>
+                                </td>
+                                <td data-sort-value="{{ schedule.subject.type|lower }}">
                                     <span class="badge bg-{{ 'info' if schedule.subject.type == 'lecture' else 'warning' }}">
-                                        {{ 'Лекция' if schedule.subject.type == 'lecture' else 'Практика' }}
+                                        {{ schedule.subject.type|ru_type }}
                                     </span>
                                 </td>
-                                <td>{{ schedule.subject.teacher.user.last_name }} {{ schedule.subject.teacher.user.first_name }}</td>
+                                <td data-sort-value="{{ schedule.subject.teacher.user.last_name|lower }}">
+                                    {{ schedule.subject.teacher.user.last_name }} 
+                                    {{ schedule.subject.teacher.user.first_name }}
+                                </td>
                                 <td>
                                     <span class="badge bg-success">
                                         {{ schedule.subject.groups[0].number|auditory_from_group }}
@@ -96,7 +131,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
+                                <td colspan="6" class="text-center text-muted py-4">
                                     Нет запланированных занятий
                                 </td>
                             </tr>
@@ -108,4 +143,79 @@
         </div>
     </div>
 </div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tables = document.querySelectorAll('.sortable-table');
+    
+    tables.forEach(table => {
+        const headers = table.querySelectorAll('th[data-sort]');
+        let currentSort = { column: null, direction: 'asc' };
+
+        // Обработчик клика по строке
+        table.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('click', (e) => {
+                if (!e.target.closest('a')) {
+                    // Дополнительная логика при клике на строку
+                    console.log('Клик по строке:', row);
+                }
+            });
+        });
+
+        headers.forEach(header => {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', (e) => {
+                if (e.target.closest('a')) return;
+                
+                const column = header.dataset.sort;
+                const isCurrent = currentSort.column === column;
+                const newDirection = isCurrent && currentSort.direction === 'asc' ? 'desc' : 'asc';
+                
+                headers.forEach(h => h.classList.remove('active', 'asc', 'desc'));
+                header.classList.add('active', newDirection);
+                
+                sortTable(table, column, newDirection);
+                currentSort = { column, direction: newDirection };
+            });
+        });
+    });
+
+    function sortTable(table, column, direction) {
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        rows.sort((a, b) => {
+            const aValue = getSortValue(a, column);
+            const bValue = getSortValue(b, column);
+            
+            if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+            if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    function getSortValue(row, column) {
+        const cell = row.querySelector(`td[data-sort-value]`);
+        switch(column) {
+            case 'date':
+            case 'duration':
+                return parseFloat(cell.dataset.sortValue);
+            case 'subject':
+            case 'teacher':
+                return cell.textContent.trim().toLowerCase();
+            case 'type':
+                return row.cells[3].dataset.sortValue;
+            case 'groups':
+                return parseInt(cell.dataset.sortValue);
+            default:
+                return '';
+        }
+    }
+});
+</script>
+{% endblock %}
 {% endblock %}
