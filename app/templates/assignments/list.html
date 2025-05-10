@@ -2,16 +2,17 @@
 
 {% block content %}
 <div class="container mt-4">
-    <!-- Список заданий -->
     <div class="card shadow mb-4">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h4 class="mb-0">
                 <i class="bi bi-journal-check me-2"></i>
                 Задания предмета: {{ subject.name }}
             </h4>
+            {% if current_user.role == 'teacher' %}
             <a href="#createForm" class="btn btn-light btn-sm">
                 <i class="bi bi-plus-circle me-1"></i>Добавить задание
             </a>
+            {% endif %}
         </div>
 
         <div class="card-body">
@@ -30,7 +31,6 @@
                     <tbody>
                         {% for assignment in assignments %}
                         <tr class="{% if assignment.deadline < current_time %}table-danger{% endif %}">
-                            <!-- Название и описание -->
                             <td>
                                 <div class="d-flex flex-column">
                                     <div class="fw-medium mb-1">
@@ -44,7 +44,6 @@
                                 </div>
                             </td>
 
-                            <!-- Дедлайн -->
                             <td>
                                 <div class="d-flex flex-column">
                                     <span class="text-nowrap">
@@ -59,14 +58,12 @@
                                 </div>
                             </td>
 
-                            <!-- Группа -->
                             <td>
                                 <span class="badge bg-secondary">
                                     {{ assignment.group.number }}
                                 </span>
                             </td>
 
-                            <!-- Файлы -->
                             <td>
                                 {% if assignment.file_path %}
                                 <a href="{{ assignment.file_path }}"
@@ -81,7 +78,6 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Действия -->
                             <td>
                                 <a href="/subjects/{{ subject.id }}/assignments/{{ assignment.id }}"
                                    class="btn btn-sm btn-primary">
@@ -96,13 +92,19 @@
             {% else %}
             <div class="text-center py-4">
                 <i class="bi bi-journal-x display-4 text-muted"></i>
-                <p class="text-muted mt-3">Нет созданных заданий</p>
+                <p class="text-muted mt-3">
+                    {% if current_user.role == 'teacher' %}
+                    Нет созданных заданий
+                    {% else %}
+                    Нет доступных заданий
+                    {% endif %}
+                </p>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Форма создания -->
+    {% if current_user.role == 'teacher' %}
     <div class="card shadow" id="createForm">
         <div class="card-header bg-success text-white">
             <h5 class="mb-0">
@@ -174,5 +176,6 @@
             </form>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}

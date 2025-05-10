@@ -44,11 +44,11 @@ Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 # -------------------------------
 
 async def get_subject_with_groups(
-    db: AsyncSession,
-    subject_id: int,
-    user: models.User
+        db: AsyncSession,
+        subject_id: int,
+        user: models.User
 ) -> models.Subject:
-    # Исправленный запрос
+    # Новый вариант проверки прав
     subject = await db.execute(
         select(models.Subject)
         .options(
@@ -61,8 +61,27 @@ async def get_subject_with_groups(
 
     if not subject:
         raise HTTPException(404, "Subject not found")
-    if user.role != "teacher" or subject.teacher.user_id != user.id:
-        raise HTTPException(403, "Forbidden")
+
+    # Для преподавателя
+    if user.role == "teacher":
+        teacher = await db.execute(
+            select(models.Teacher)
+            .where(models.Teacher.user_id == user.id)
+        )
+        teacher = teacher.scalar()
+        if not teacher or subject.teacher_id != teacher.user_id:
+            raise HTTPException(403, "Forbidden")
+
+    # Для студента
+    if user.role == "student":
+        student = await db.execute(
+            select(models.Student)
+            .options(selectinload(models.Student.group))
+            .where(models.Student.user_id == user.id)
+        )
+        student = student.scalar()
+        if not student or student.group_id not in [g.id for g in subject.groups]:
+            raise HTTPException(403, "Access denied for this group")
 
     return subject
 
@@ -104,18 +123,30 @@ async def assignments_list(
         db: AsyncSession = Depends(database.get_db),
         current_user: models.User = Depends(get_current_user)
 ):
-    subject = await get_subject_with_groups(db, subject_id, current_user)
+    try:
+        subject = await get_subject_with_groups(db, subject_id, current_user)
+    except HTTPException as e:
+        return RedirectResponse(f"/?error={e.detail}", status_code=303)
+
+    # Фильтр для студентов
+    base_query = select(models.CourseMaterial).where(and_(
+        models.CourseMaterial.subject_id == subject_id,
+        cast(models.CourseMaterial.type, String) == 'assignment'
+    ))
+
+    if current_user.role == "student":
+        student = await db.execute(
+            select(models.Student)
+            .where(models.Student.user_id == current_user.id)
+        )
+        student = student.scalar()
+        base_query = base_query.where(models.CourseMaterial.group_id == student.group_id)
 
     assignments = await db.execute(
-        select(models.CourseMaterial)
-        .options(
+        base_query.options(
             selectinload(models.CourseMaterial.group),
             selectinload(models.CourseMaterial.submissions)
         )
-        .where(and_(
-            models.CourseMaterial.subject_id == subject_id,
-            cast(models.CourseMaterial.type, String) == 'assignment'
-        ))
     )
     assignments = assignments.scalars().all()
 
@@ -123,6 +154,7 @@ async def assignments_list(
         "assignments/list.html",
         {
             "request": request,
+            "current_user": current_user,  # Добавляем пользователя в контекст
             "subject": subject,
             "assignments": assignments,
             "current_time": datetime.now(),
