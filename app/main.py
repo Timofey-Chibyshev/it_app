@@ -9,10 +9,14 @@ from app.routers import (
     home
 )
 
+from fastapi.staticfiles import StaticFiles
+
+
 app = FastAPI()
 
 # Важно: монтирование статики после импорта dependencies
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(home.router)
 app.include_router(auth.router)

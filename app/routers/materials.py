@@ -121,22 +121,30 @@ async def create_material(
         if material_type == "assignment" and not deadline:
             raise HTTPException(400, "Deadline required for assignments")
 
-        # Сохранение файла
-        file_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}" / f"group_{group_id}"
+        # Определяем тип материала для пути
+        folder = "lectures" if material_type == "lecture" else "practices"
+
+        # Создаем путь для сохранения
+        file_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}" / folder
         file_dir.mkdir(parents=True, exist_ok=True)
 
-        file_name = f"{uuid.uuid4()}{Path(file.filename).suffix}"
+        # Генерируем имя файла
+        file_ext = Path(file.filename).suffix
+        file_name = f"{uuid.uuid4()}{file_ext}"
         file_path = file_dir / file_name
 
+        # Сохраняем файл
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Создание записи
+        # Сохраняем относительный путь в БД
+        relative_path = file_path.relative_to(UPLOAD_DIR)
+
         new_material = models.CourseMaterial(
             title=title,
             description=description,
             type=material_type,
-            file_path=str(file_path),
+            file_path=str(relative_path),  # Сохраняем относительный путь
             subject_id=subject_id,
             group_id=group_id,
             deadline=deadline
@@ -155,3 +163,37 @@ async def create_material(
             f"/subjects/{subject_id}/materials?error={str(e)}",
             status_code=303
         )
+
+
+from fastapi.responses import FileResponse  # Добавить импорт
+
+
+@router.get("/download/{material_id}")
+async def download_material(
+        subject_id: int,
+        material_id: int,
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    material = await db.execute(
+        select(models.CourseMaterial)
+        .options(selectinload(models.CourseMaterial.subject))
+        .where(models.CourseMaterial.id == material_id)
+    )
+    material = material.scalar()
+
+    if not material:
+        raise HTTPException(404, "Material not found")
+
+    # Полный путь к файлу
+    full_path = Path(UPLOAD_DIR) / material.file_path
+
+    if not full_path.exists():
+        logger.error(f"File not found: {full_path}")
+        raise HTTPException(404, "File not found")
+
+    return FileResponse(
+        full_path,
+        filename=f"{material.title}{full_path.suffix}",
+        media_type="application/octet-stream"
+    )

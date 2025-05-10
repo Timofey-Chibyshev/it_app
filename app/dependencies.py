@@ -54,3 +54,5 @@ def configure_jinja_filters():
 
 # Инициализируем фильтры сразу
 configure_jinja_filters()
+
+templates.env.filters["filename"] = lambda path: Path(path).name
