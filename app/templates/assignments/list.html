@@ -24,13 +24,24 @@
                             <th>Название</th>
                             <th>Дедлайн</th>
                             <th>Группа</th>
+                            <th>Статус</th>
                             <th>Материалы</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for assignment in assignments %}
-                        <tr class="{% if assignment.deadline < current_time %}{% if current_user.role == 'teacher' %}table-warning{% else %}table-danger{% endif %}{% endif %}">
+                        <tr class="
+                            {% if current_user.role == 'student' %}
+                                {% if assignment.id in submission_status %}
+                                    {% if submission_status[assignment.id] == 'graded' %}table-success
+                                    {% elif submission_status[assignment.id] == 'submitted' %}table-warning
+                                    {% endif %}
+                                {% else %}
+                                    {% if assignment.deadline < current_time %}table-danger{% endif %}
+                                {% endif %}
+                            {% endif %}">
+
                             <td>
                                 <div class="d-flex flex-column">
                                     <div class="fw-medium mb-1">
@@ -52,13 +63,6 @@
                                     <span class="text-muted small">
                                         {{ assignment.deadline.strftime('%H:%M') }}
                                     </span>
-                                    {% if assignment.deadline < current_time %}
-                                        {% if current_user.role == 'teacher' %}
-                                        <span class="badge bg-warning mt-1">Срок сдачи закончен</span>
-                                        {% else %}
-                                        <span class="badge bg-danger mt-1">Просрочено</span>
-                                        {% endif %}
-                                    {% endif %}
                                 </div>
                             </td>
 
@@ -66,6 +70,28 @@
                                 <span class="badge bg-secondary">
                                     {{ assignment.group.number }}
                                 </span>
+                            </td>
+
+                            <td>
+                                {% if current_user.role == 'student' %}
+                                    {% if assignment.id in submission_status %}
+                                        {% if submission_status[assignment.id] == 'graded' %}
+                                            <span class="badge bg-success">Проверено</span>
+                                        {% elif submission_status[assignment.id] == 'submitted' %}
+                                            <span class="badge bg-warning">На проверке</span>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if assignment.deadline < current_time %}
+                                            <span class="badge bg-danger">Просрочено</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Не начато</span>
+                                        {% endif %}
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-secondary">
+                                        Сдано: {{ assignment.submissions|length }} / {{ assignment.group.students|length }}
+                                    </span>
+                                {% endif %}
                             </td>
 
                             <td>
@@ -118,13 +144,6 @@
         </div>
 
         <div class="card-body">
-            {% if error %}
-            <div class="alert alert-danger alert-dismissible fade show">
-                {{ error }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endif %}
-
             <form method="post" enctype="multipart/form-data">
                 <div class="row g-3">
                     <div class="col-md-6">

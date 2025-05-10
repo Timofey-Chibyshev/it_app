@@ -14,7 +14,6 @@
         </div>
 
         <div class="card-body">
-            <!-- Основная информация о задании -->
             <div class="row mb-4">
                 <div class="col-md-6">
                     <h5>Описание задания</h5>
@@ -31,9 +30,9 @@
                 </div>
 
                 <div class="col-md-6">
-                    <div class="card border-{% if assignment.deadline > current_time %}success{% else %}{% if current_user.role == 'teacher' %}warning{% else %}danger{% endif %}{% endif %}">
+                    <div class="card border-{% if current_user.role == 'student' %}{% if user_submission %}success{% else %}{% if assignment.deadline < current_time %}danger{% else %}primary{% endif %}{% endif %}{% else %}secondary{% endif %}">
                         <div class="card-body">
-                            <h5 class="card-title text-{% if assignment.deadline > current_time %}success{% else %}{% if current_user.role == 'teacher' %}warning{% else %}danger{% endif %}{% endif %}">
+                            <h5 class="card-title text-{% if current_user.role == 'student' %}{% if user_submission %}success{% else %}{% if assignment.deadline < current_time %}danger{% else %}primary{% endif %}{% endif %}{% else %}secondary{% endif %}">
                                 <i class="bi bi-clock me-2"></i>
                                 Срок сдачи
                             </h5>
@@ -41,17 +40,16 @@
                                 <span>
                                     {{ assignment.deadline.strftime('%d.%m.%Y %H:%M') }}
                                     {% if assignment.deadline < current_time %}
-                                        {% if current_user.role == 'teacher' %}
-                                        <span class="badge bg-warning ms-2">Срок сдачи закончен</span>
-                                        {% else %}
-                                        <span class="badge bg-danger ms-2">Просрочено</span>
-                                        {% endif %}
+                                        <span class="badge bg-{% if current_user.role == 'student' %}danger{% else %}secondary{% endif %}">
+                                            {% if current_user.role == 'student' %}Просрочено{% else %}Срок закончен{% endif %}
+                                        </span>
                                     {% endif %}
                                 </span>
-                                <span class="badge bg-{% if assignment.deadline > current_time %}primary{% else %}{% if current_user.role == 'teacher' %}warning{% else %}secondary{% endif %}{% endif %}">
-                                    Осталось:
-                                    {{ (assignment.deadline - current_time)|time_left }}
+                                {% if assignment.deadline > current_time %}
+                                <span class="badge bg-primary">
+                                    Осталось: {{ (assignment.deadline - current_time)|time_left }}
                                 </span>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -59,7 +57,6 @@
             </div>
 
             {% if current_user.role == 'teacher' %}
-            <!-- Интерфейс преподавателя -->
             <div class="teacher-interface">
                 <h5 class="mb-3"><i class="bi bi-files me-2"></i>Сданные работы</h5>
 
@@ -69,6 +66,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Студент</th>
+                                <th>Группа</th>
                                 <th>Файл работы</th>
                                 <th>Дата сдачи</th>
                                 <th>Оценка</th>
@@ -79,6 +77,7 @@
                             {% for submission in assignment.submissions %}
                             <tr>
                                 <td>{{ submission.student.user.full_name }}</td>
+                                <td class="text-muted small">{{ submission.student.group.number }}</td>
                                 <td>
                                     <a href="{{ submission.file_path }}"
                                        class="btn btn-sm btn-outline-secondary"
@@ -116,9 +115,8 @@
                 {% endif %}
             </div>
             {% else %}
-            <!-- Интерфейс студента -->
             <div class="student-interface">
-                <div class="card border-{% if user_submission %}success{% else %}primary{% endif %}">
+                <div class="card border-{% if user_submission %}success{% elif assignment.deadline < current_time %}danger{% else %}primary{% endif %}">
                     <div class="card-body">
                         <h5 class="card-title">
                             <i class="bi bi-file-earmark-arrow-up me-2"></i>
@@ -126,7 +124,6 @@
                         </h5>
 
                         {% if user_submission %}
-                        <!-- Информация о сданной работе -->
                         <div class="alert alert-success">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
@@ -163,13 +160,11 @@
                             {% endif %}
                         </div>
                         {% elif assignment.deadline < current_time %}
-                        <!-- Просроченный дедлайн -->
                         <div class="alert alert-danger">
                             <i class="bi bi-exclamation-octagon-fill me-2"></i>
                             Срок сдачи задания истек
                         </div>
                         {% else %}
-                        <!-- Форма сдачи -->
                         <form method="post"
                               action="/subjects/{{ subject.id }}/assignments/{{ assignment.id }}/submit"
                               enctype="multipart/form-data"
@@ -185,9 +180,6 @@
                                 <div class="invalid-feedback">
                                     Пожалуйста, выберите файл для загрузки
                                 </div>
-                                <small class="text-muted">
-                                    Допустимые форматы: PDF, Word, архив (макс. 20MB)
-                                </small>
                             </div>
                             <button type="submit"
                                     class="btn btn-primary w-100">
@@ -205,7 +197,6 @@
 </div>
 
 {% if current_user.role == 'teacher' %}
-<!-- Модальные окна оценки -->
 {% for submission in assignment.submissions %}
 <div class="modal fade" id="gradeModal{{ submission.id }}" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -260,23 +251,16 @@
 {% endif %}
 
 <style>
-    .time-left-badge {
-        font-size: 0.9rem;
-        padding: 0.35rem 0.7rem;
-    }
-    .student-interface .alert {
-        border-radius: 0.5rem;
-    }
-    .needs-validation .form-control:invalid {
-        border-color: #dc3545;
-    }
-    .needs-validation .invalid-feedback {
-        display: block;
-    }
+    .card.border-success { border: 2px solid #198754; }
+    .card.border-danger { border: 2px solid #dc3545; }
+    .card.border-primary { border: 2px solid #0d6efd; }
+    .card.border-secondary { border: 2px solid #6c757d; }
+    .student-interface .alert { border-left: 4px solid; }
+    .alert-success { border-left-color: #198754; }
+    .alert-danger { border-left-color: #dc3545; }
 </style>
 
 <script>
-    // Валидация формы
     (() => {
         'use strict'
         const forms = document.querySelectorAll('.needs-validation')

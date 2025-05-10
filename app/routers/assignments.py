@@ -128,7 +128,7 @@ async def assignments_list(
     except HTTPException as e:
         return RedirectResponse(f"/?error={e.detail}", status_code=303)
 
-    # Фильтр для студентов
+    # Существующий код получения заданий
     base_query = select(models.CourseMaterial).where(and_(
         models.CourseMaterial.subject_id == subject_id,
         cast(models.CourseMaterial.type, String) == 'assignment'
@@ -150,14 +150,36 @@ async def assignments_list(
     )
     assignments = assignments.scalars().all()
 
+    # Добавляем новый код для получения статусов отправок
+    submission_status = {}
+    if current_user.role == "student" and assignments:
+        student = await db.execute(
+            select(models.Student)
+            .where(models.Student.user_id == current_user.id)
+        )
+        student = student.scalar()
+
+        if student:
+            assignment_ids = [a.id for a in assignments]
+            submissions = await db.execute(
+                select(models.AssignmentSubmission)
+                .where(and_(
+                    models.AssignmentSubmission.student_id == student.id,
+                    models.AssignmentSubmission.material_id.in_(assignment_ids)
+                ))
+            )
+            submissions = submissions.scalars().all()
+            submission_status = {sub.material_id: sub.status for sub in submissions}
+
     return templates.TemplateResponse(
         "assignments/list.html",
         {
             "request": request,
-            "current_user": current_user,  # Добавляем пользователя в контекст
+            "current_user": current_user,
             "subject": subject,
             "assignments": assignments,
             "current_time": datetime.now(),
+            "submission_status": submission_status,  # Добавляем статусы в контекст
             "error": request.query_params.get("error"),
             "success": request.query_params.get("success")
         }
