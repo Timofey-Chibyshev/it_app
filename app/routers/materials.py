@@ -36,15 +36,32 @@ Path(UPLOAD_DIR).mkdir(exist_ok=True)
 async def get_subject_with_check(db: AsyncSession, subject_id: int, user: models.User):
     subject = await db.execute(
         select(models.Subject)
-        .options(selectinload(models.Subject.teacher))
+        .options(selectinload(models.Subject.groups))
         .where(models.Subject.id == subject_id)
     )
     subject = subject.scalar()
 
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
-    if user.role != "teacher" or subject.teacher.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Для преподавателя проверяем владение предметом
+    if user.role == "teacher":
+        teacher = await db.execute(select(models.Teacher).where(models.Teacher.user_id == user.id))
+        teacher = teacher.scalar()
+        if not teacher or subject.teacher_id != teacher.user_id:
+            raise HTTPException(403, "Forbidden for teachers")
+
+    # Для студента проверяем принадлежность к группе предмета
+    if user.role == "student":
+        student = await db.execute(
+            select(models.Student)
+            .options(selectinload(models.Student.group))
+            .where(models.Student.user_id == user.id)
+        )
+        student = student.scalar()
+        if not student or student.group_id not in [g.id for g in subject.groups]:
+            raise HTTPException(403, "Forbidden for students")
+
     return subject
 
 
@@ -56,8 +73,12 @@ async def materials_page(
         db: AsyncSession = Depends(database.get_db),
         current_user: models.User = Depends(get_current_user)
 ):
-    subject = await get_subject_with_check(db, subject_id, current_user)
+    try:
+        subject = await get_subject_with_check(db, subject_id, current_user)
+    except HTTPException as e:
+        return RedirectResponse(f"/?error={e.detail}", status_code=303)
 
+    # Остальной код получения материалов остается без изменений
     materials = (await db.execute(
         select(models.CourseMaterial)
         .options(
@@ -70,6 +91,7 @@ async def materials_page(
         "subjects/materials.html",
         {
             "request": request,
+            "current_user": current_user,
             "subject": subject,
             "materials": materials,
             "groups": subject.groups,

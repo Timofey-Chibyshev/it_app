@@ -2,75 +2,90 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="card shadow">
-        <div class="card-header {% if current_user.role == 'teacher' %}bg-primary{% else %}bg-success{% endif %} text-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">
-                    <i class="bi bi-journal-check me-2"></i>
-                    {{ subject.name }} - Задания
-                </h4>
-                {% if current_user.role == 'teacher' %}
-                <a href="/subjects/{{ subject.id }}/materials?type=assignment" 
-                   class="btn btn-light btn-sm">
-                    <i class="bi bi-plus-circle me-1"></i>Новое задание
-                </a>
-                {% endif %}
-            </div>
+    <!-- Список заданий -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+                <i class="bi bi-journal-check me-2"></i>
+                Задания предмета: {{ subject.name }}
+            </h4>
+            <a href="#createForm" class="btn btn-light btn-sm">
+                <i class="bi bi-plus-circle me-1"></i>Добавить задание
+            </a>
         </div>
 
         <div class="card-body">
             {% if assignments %}
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
-                    <thead>
+                    <thead class="table-light">
                         <tr>
                             <th>Название</th>
                             <th>Дедлайн</th>
-                            {% if current_user.role == 'teacher' %}
                             <th>Группа</th>
-                            <th>Сдано</th>
-                            {% else %}
-                            <th>Статус</th>
-                            {% endif %}
-                            <th></th>
+                            <th>Материалы</th>
+                            <th>Действия</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for assignment in assignments %}
                         <tr class="{% if assignment.deadline < current_time %}table-danger{% endif %}">
+                            <!-- Название и описание -->
                             <td>
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-file-earmark-text me-2 fs-5"></i>
-                                    {{ assignment.title }}
+                                <div class="d-flex flex-column">
+                                    <div class="fw-medium mb-1">
+                                        {{ assignment.title }}
+                                    </div>
+                                    {% if assignment.description %}
+                                    <div class="text-muted small">
+                                        {{ assignment.description }}
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                <div class="text-muted small">{{ assignment.description }}</div>
                             </td>
+
+                            <!-- Дедлайн -->
                             <td>
-                                {{ assignment.deadline.strftime('%d.%m.%Y %H:%M') }}
-                                {% if assignment.deadline < current_time %}
-                                <span class="badge bg-danger ms-2">Просрочено</span>
-                                {% endif %}
+                                <div class="d-flex flex-column">
+                                    <span class="text-nowrap">
+                                        {{ assignment.deadline.strftime('%d.%m.%Y') }}
+                                    </span>
+                                    <span class="text-muted small">
+                                        {{ assignment.deadline.strftime('%H:%M') }}
+                                    </span>
+                                    {% if assignment.deadline < current_time %}
+                                    <span class="badge bg-danger mt-1">Просрочено</span>
+                                    {% endif %}
+                                </div>
                             </td>
-                            {% if current_user.role == 'teacher' %}
-                            <td>{{ assignment.group.number }}</td>
+
+                            <!-- Группа -->
                             <td>
-                                {{ assignment.submissions|length }} / {{ assignment.group.students|length }}
+                                <span class="badge bg-secondary">
+                                    {{ assignment.group.number }}
+                                </span>
                             </td>
-                            {% else %}
+
+                            <!-- Файлы -->
                             <td>
-                                {% set submission = assignment.submissions|selectattr('student_id', '==', student.id)|first %}
-                                {% if submission %}
-                                    <span class="badge bg-success">Сдано</span>
+                                {% if assignment.file_path %}
+                                <a href="{{ assignment.file_path }}"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   download
+                                   title="Скачать файл задания">
+                                    <i class="bi bi-download me-1"></i>
+                                    {{ assignment.file_path|filename }}
+                                </a>
                                 {% else %}
-                                    <span class="badge bg-secondary">Не сдано</span>
+                                <span class="text-muted small">Нет файла</span>
                                 {% endif %}
                             </td>
-                            {% endif %}
-                            <td class="text-end">
-                                <a href="/subjects/{{ subject.id }}/assignments/{{ assignment.id }}" 
-                                   class="btn btn-sm {% if current_user.role == 'teacher' %}btn-outline-primary{% else %}btn-outline-success{% endif %}">
-                                    <i class="bi bi-arrow-right-circle me-1"></i>
-                                    {% if current_user.role == 'teacher' %}Проверить{% else %}Подробнее{% endif %}
+
+                            <!-- Действия -->
+                            <td>
+                                <a href="/subjects/{{ subject.id }}/assignments/{{ assignment.id }}"
+                                   class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye me-1"></i>Просмотр
                                 </a>
                             </td>
                         </tr>
@@ -81,9 +96,82 @@
             {% else %}
             <div class="text-center py-4">
                 <i class="bi bi-journal-x display-4 text-muted"></i>
-                <p class="text-muted mt-3">Нет активных заданий</p>
+                <p class="text-muted mt-3">Нет созданных заданий</p>
             </div>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- Форма создания -->
+    <div class="card shadow" id="createForm">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-plus-circle me-2"></i>
+                Создать новое задание
+            </h5>
+        </div>
+
+        <div class="card-body">
+            {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show">
+                {{ error }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Группа</label>
+                        <select name="group_id" class="form-select" required>
+                            {% for group in subject.groups %}
+                            <option value="{{ group.id }}">{{ group.number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Дедлайн</label>
+                        <input type="datetime-local"
+                               name="deadline"
+                               class="form-control"
+                               required>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Название задания</label>
+                        <input type="text"
+                               name="title"
+                               class="form-control"
+                               placeholder="Введите название"
+                               required>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Описание</label>
+                        <textarea name="description"
+                                class="form-control"
+                                rows="2"
+                                placeholder="Добавьте описание задания"></textarea>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Файл задания (необязательно)</label>
+                        <input type="file"
+                               class="form-control"
+                               name="file"
+                               accept=".pdf,.doc,.docx,.zip">
+                        <div class="form-text">Максимальный размер файла: 20MB</div>
+                    </div>
+
+                    <div class="col-12 mt-4">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-save me-2"></i>
+                            Создать задание
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
