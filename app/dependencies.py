@@ -42,3 +42,16 @@ def configure_jinja_filters():
 
 # Вызываем сразу при импорте
 configure_jinja_filters()
+
+
+from .filters import time_left, filename
+
+templates = Jinja2Templates(directory="app/templates")
+templates.env.filters["time_left"] = time_left
+templates.env.filters["filename"] = filename
+
+templates.env.filters['ru_status'] = lambda s: {
+    'submitted': 'Отправлено',
+    'graded': 'Оценено',
+    'rejected': 'Отклонено'
+}.get(s, s)

@@ -175,12 +175,33 @@ async def assignment_detail(
     subject = await get_subject_with_groups(db, subject_id, current_user)
     assignment = await get_assignment_with_submissions(db, assignment_id, current_user)
 
+    user_submission = None
+    if current_user.role == "student":
+        # Найти студента
+        student = await db.execute(
+            select(models.Student)
+            .where(models.Student.user_id == current_user.id)
+        )
+        student = student.scalar()
+        if student:
+            # Найти отправку студента
+            submission = await db.execute(
+                select(models.AssignmentSubmission)
+                .where(and_(
+                    models.AssignmentSubmission.material_id == assignment_id,
+                    models.AssignmentSubmission.student_id == student.id
+                ))
+            )
+            user_submission = submission.scalar()
+
     return templates.TemplateResponse(
         "assignments/detail.html",
         {
             "request": request,
+            "current_user": current_user,
             "subject": subject,
             "assignment": assignment,
+            "user_submission": user_submission,  # Передаем отправку студента
             "current_time": datetime.now()
         }
     )
@@ -209,7 +230,7 @@ async def grade_submission(
     )
     submission = submission.scalar()
 
-    if not submission or submission.assignment_id != assignment_id:
+    if not submission or submission.material_id != assignment_id:
         raise HTTPException(404, "Submission not found")
 
     submission.grade = grade
@@ -273,19 +294,19 @@ async def submit_assignment(
         select(Submission)
         .where(and_(
             Submission.student_id == student.id,
-            Submission.assignment_id == assignment_id
+            Submission.material_id == assignment_id
         ))
     )
     existing = existing.scalar()
 
     if existing:
         existing.file_path = str(file_path)
-        existing.submitted_at = datetime.now()
+        existing.submission_date = datetime.now()
         existing.status = "submitted"
     else:
-        submission = models.Submission(
+        submission = models.AssignmentSubmission(
             student_id=student.id,
-            assignment_id=assignment_id,
+            material_id=assignment_id,
             file_path=str(file_path),
             status="submitted"
         )
@@ -293,7 +314,7 @@ async def submit_assignment(
 
     await db.commit()
     return RedirectResponse(
-        f"/subjects/{subject_id}/assignments",
+        f"/subjects/{subject_id}/assignments/{assignment_id}",
         status_code=303
     )
 
