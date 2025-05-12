@@ -1,20 +1,16 @@
-# app/dependencies.py
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from datetime import datetime, timedelta
 import logging
-from .filters import time_left, filename  # Перенесем импорт сюда
+from .filters import time_left
 
 logger = logging.getLogger(__name__)
 
-# Инициализация шаблонов ОДИН РАЗ
 templates = Jinja2Templates(directory="app/templates")
-
 
 def configure_jinja_filters():
     logger.info("Configuring Jinja2 filters")
 
-    # Ваши кастомные фильтры
     def datetime_filter(value, fmt="%d.%m.%Y %H:%M"):
         if isinstance(value, datetime):
             return value.strftime(fmt)
@@ -41,10 +37,10 @@ def configure_jinja_filters():
             logger.error(f"Error in auditory filter: {str(e)}")
             return "Ауд. 000"
 
-    # Регистрация ВСЕХ фильтров в одном месте
     templates.env.filters.update({
         "datetime_format": datetime_filter,
         "duration_format": duration_filter,
+        "weekday": weekday_filter,
         "auditory_from_group": auditory_filter,
         "filename": lambda path: Path(path).name,
         "ru_type": lambda t: {"lecture": "Лекция", "practice": "Практика"}.get(t, t),
@@ -53,14 +49,10 @@ def configure_jinja_filters():
             'submitted': 'Отправлено',
             'graded': 'Оценено',
             'rejected': 'Отклонено'
-        }.get(s, s)
+        }.get(s, s),
+        "file_extension": lambda path: Path(path).suffix
     })
 
     logger.info("Jinja2 filters configured successfully")
 
-
-# Инициализируем фильтры сразу
 configure_jinja_filters()
-
-templates.env.filters["filename"] = lambda path: Path(path).name
-templates.env.filters["file_extension"] = lambda path: Path(path).suffix
