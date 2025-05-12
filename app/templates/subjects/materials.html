@@ -9,9 +9,11 @@
                 <i class="bi bi-file-earmark-richtext me-2"></i>
                 Материалы предмета: {{ subject.name }}
             </h4>
+            {% if current_user.role == 'teacher' %}
             <a href="#uploadForm" class="btn btn-light btn-sm">
                 <i class="bi bi-plus-circle me-1"></i>Добавить материал
             </a>
+            {% endif %}
         </div>
 
         <div class="card-body">
@@ -53,12 +55,12 @@
                             </td>
                             <td>{{ material.group.number }}</td>
                             <td>
-                                <a href="/{{ material.file_path }}"
+                                <a href="/subjects/{{ subject.id }}/materials/download/{{ material.id }}"
                                    class="btn btn-sm btn-outline-secondary"
                                    download
                                    title="Скачать файл">
                                     <i class="bi bi-download me-1"></i>
-                                    {{ material.file_path|filename }}
+                                    {{ material.title }}{{ material.file_path|file_extension }}
                                 </a>
                             </td>
                             <td>{{ material.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
@@ -77,6 +79,7 @@
     </div>
 
     <!-- Форма загрузки -->
+    {% if current_user.role == 'teacher' %}
     <div class="card shadow" id="uploadForm">
         <div class="card-header bg-success text-white">
             <h5 class="mb-0">
@@ -158,6 +161,7 @@
             </form>
         </div>
     </div>
+    {% endif %}
 </div>
 
 <style>

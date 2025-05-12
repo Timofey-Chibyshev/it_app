@@ -36,15 +36,32 @@ Path(UPLOAD_DIR).mkdir(exist_ok=True)
 async def get_subject_with_check(db: AsyncSession, subject_id: int, user: models.User):
     subject = await db.execute(
         select(models.Subject)
-        .options(selectinload(models.Subject.teacher))
+        .options(selectinload(models.Subject.groups))
         .where(models.Subject.id == subject_id)
     )
     subject = subject.scalar()
 
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
-    if user.role != "teacher" or subject.teacher.user_id != user.id:
-        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Для преподавателя проверяем владение предметом
+    if user.role == "teacher":
+        teacher = await db.execute(select(models.Teacher).where(models.Teacher.user_id == user.id))
+        teacher = teacher.scalar()
+        if not teacher or subject.teacher_id != teacher.user_id:
+            raise HTTPException(403, "Forbidden for teachers")
+
+    # Для студента проверяем принадлежность к группе предмета
+    if user.role == "student":
+        student = await db.execute(
+            select(models.Student)
+            .options(selectinload(models.Student.group))
+            .where(models.Student.user_id == user.id)
+        )
+        student = student.scalar()
+        if not student or student.group_id not in [g.id for g in subject.groups]:
+            raise HTTPException(403, "Forbidden for students")
+
     return subject
 
 
@@ -56,8 +73,12 @@ async def materials_page(
         db: AsyncSession = Depends(database.get_db),
         current_user: models.User = Depends(get_current_user)
 ):
-    subject = await get_subject_with_check(db, subject_id, current_user)
+    try:
+        subject = await get_subject_with_check(db, subject_id, current_user)
+    except HTTPException as e:
+        return RedirectResponse(f"/?error={e.detail}", status_code=303)
 
+    # Остальной код получения материалов остается без изменений
     materials = (await db.execute(
         select(models.CourseMaterial)
         .options(
@@ -70,6 +91,7 @@ async def materials_page(
         "subjects/materials.html",
         {
             "request": request,
+            "current_user": current_user,
             "subject": subject,
             "materials": materials,
             "groups": subject.groups,
@@ -99,22 +121,30 @@ async def create_material(
         if material_type == "assignment" and not deadline:
             raise HTTPException(400, "Deadline required for assignments")
 
-        # Сохранение файла
-        file_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}" / f"group_{group_id}"
+        # Определяем тип материала для пути
+        folder = "lectures" if material_type == "lecture" else "practices"
+
+        # Создаем путь для сохранения
+        file_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}" / folder
         file_dir.mkdir(parents=True, exist_ok=True)
 
-        file_name = f"{uuid.uuid4()}{Path(file.filename).suffix}"
+        # Генерируем имя файла
+        file_ext = Path(file.filename).suffix
+        file_name = f"{uuid.uuid4()}{file_ext}"
         file_path = file_dir / file_name
 
+        # Сохраняем файл
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Создание записи
+        # Сохраняем относительный путь в БД
+        relative_path = file_path.relative_to(UPLOAD_DIR)
+
         new_material = models.CourseMaterial(
             title=title,
             description=description,
             type=material_type,
-            file_path=str(file_path),
+            file_path=str(relative_path),  # Сохраняем относительный путь
             subject_id=subject_id,
             group_id=group_id,
             deadline=deadline
@@ -133,3 +163,37 @@ async def create_material(
             f"/subjects/{subject_id}/materials?error={str(e)}",
             status_code=303
         )
+
+
+from fastapi.responses import FileResponse  # Добавить импорт
+
+
+@router.get("/download/{material_id}")
+async def download_material(
+        subject_id: int,
+        material_id: int,
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    material = await db.execute(
+        select(models.CourseMaterial)
+        .options(selectinload(models.CourseMaterial.subject))
+        .where(models.CourseMaterial.id == material_id)
+    )
+    material = material.scalar()
+
+    if not material:
+        raise HTTPException(404, "Material not found")
+
+    # Полный путь к файлу
+    full_path = Path(UPLOAD_DIR) / material.file_path
+
+    if not full_path.exists():
+        logger.error(f"File not found: {full_path}")
+        raise HTTPException(404, "File not found")
+
+    return FileResponse(
+        full_path,
+        filename=f"{material.title}{full_path.suffix}",
+        media_type="application/octet-stream"
+    )

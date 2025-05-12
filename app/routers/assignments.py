@@ -24,8 +24,11 @@ from app import database
 from app.auth import get_current_user
 from app.dependencies import templates
 from sqlalchemy import text
-
+import logging
+logger = logging.getLogger(__name__)
 from sqlalchemy import cast, String
+
+from app.models.models import AssignmentSubmission as Submission
 
 router = APIRouter(
     prefix="/subjects/{subject_id}/assignments",
@@ -41,11 +44,11 @@ Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 # -------------------------------
 
 async def get_subject_with_groups(
-    db: AsyncSession,
-    subject_id: int,
-    user: models.User
+        db: AsyncSession,
+        subject_id: int,
+        user: models.User
 ) -> models.Subject:
-    # Исправленный запрос
+    # Новый вариант проверки прав
     subject = await db.execute(
         select(models.Subject)
         .options(
@@ -58,8 +61,27 @@ async def get_subject_with_groups(
 
     if not subject:
         raise HTTPException(404, "Subject not found")
-    if user.role != "teacher" or subject.teacher.user_id != user.id:
-        raise HTTPException(403, "Forbidden")
+
+    # Для преподавателя
+    if user.role == "teacher":
+        teacher = await db.execute(
+            select(models.Teacher)
+            .where(models.Teacher.user_id == user.id)
+        )
+        teacher = teacher.scalar()
+        if not teacher or subject.teacher_id != teacher.user_id:
+            raise HTTPException(403, "Forbidden")
+
+    # Для студента
+    if user.role == "student":
+        student = await db.execute(
+            select(models.Student)
+            .options(selectinload(models.Student.group))
+            .where(models.Student.user_id == user.id)
+        )
+        student = student.scalar()
+        if not student or student.group_id not in [g.id for g in subject.groups]:
+            raise HTTPException(403, "Access denied for this group")
 
     return subject
 
@@ -73,7 +95,7 @@ async def get_assignment_with_submissions(
         select(models.CourseMaterial)
         .options(
             selectinload(models.CourseMaterial.submissions)
-            .selectinload(models.Submission.student)
+            .selectinload(Submission.student)
             .selectinload(models.Student.user),
             selectinload(models.CourseMaterial.group)
         )
@@ -101,34 +123,70 @@ async def assignments_list(
         db: AsyncSession = Depends(database.get_db),
         current_user: models.User = Depends(get_current_user)
 ):
-    subject = await get_subject_with_groups(db, subject_id, current_user)
+    try:
+        subject = await get_subject_with_groups(db, subject_id, current_user)
+    except HTTPException as e:
+        return RedirectResponse(f"/?error={e.detail}", status_code=303)
+
+    # Существующий код получения заданий
+    base_query = select(models.CourseMaterial).where(and_(
+        models.CourseMaterial.subject_id == subject_id,
+        cast(models.CourseMaterial.type, String) == 'assignment'
+    ))
+
+    if current_user.role == "student":
+        student = await db.execute(
+            select(models.Student)
+            .where(models.Student.user_id == current_user.id)
+        )
+        student = student.scalar()
+        base_query = base_query.where(models.CourseMaterial.group_id == student.group_id)
 
     assignments = await db.execute(
-        select(models.CourseMaterial)
-        .options(
-            selectinload(models.CourseMaterial.submissions),
-            selectinload(models.CourseMaterial.group)
+        base_query.options(
+            selectinload(models.CourseMaterial.group),
+            selectinload(models.CourseMaterial.submissions)
         )
-        .where(and_(
-            models.CourseMaterial.subject_id == subject_id,
-            cast(models.CourseMaterial.type, String) == 'assignment'
-        ))
     )
     assignments = assignments.scalars().all()
+
+    # Добавляем новый код для получения статусов отправок
+    submission_status = {}
+    if current_user.role == "student" and assignments:
+        student = await db.execute(
+            select(models.Student)
+            .where(models.Student.user_id == current_user.id)
+        )
+        student = student.scalar()
+
+        if student:
+            assignment_ids = [a.id for a in assignments]
+            submissions = await db.execute(
+                select(models.AssignmentSubmission)
+                .where(and_(
+                    models.AssignmentSubmission.student_id == student.id,
+                    models.AssignmentSubmission.material_id.in_(assignment_ids)
+                ))
+            )
+            submissions = submissions.scalars().all()
+            submission_status = {sub.material_id: sub.status for sub in submissions}
 
     return templates.TemplateResponse(
         "assignments/list.html",
         {
             "request": request,
+            "current_user": current_user,
             "subject": subject,
             "assignments": assignments,
             "current_time": datetime.now(),
-            "current_user": current_user
+            "submission_status": submission_status,  # Добавляем статусы в контекст
+            "error": request.query_params.get("error"),
+            "success": request.query_params.get("success")
         }
     )
 
 
-@router.get("/{assignment_id}", response_class=HTMLResponse)
+@router.get("/{assignment_id}", response_class=HTMLResponse, name="assignment_detail")
 async def assignment_detail(
         request: Request,
         subject_id: int,
@@ -139,12 +197,33 @@ async def assignment_detail(
     subject = await get_subject_with_groups(db, subject_id, current_user)
     assignment = await get_assignment_with_submissions(db, assignment_id, current_user)
 
+    user_submission = None
+    if current_user.role == "student":
+        # Найти студента
+        student = await db.execute(
+            select(models.Student)
+            .where(models.Student.user_id == current_user.id)
+        )
+        student = student.scalar()
+        if student:
+            # Найти отправку студента
+            submission = await db.execute(
+                select(models.AssignmentSubmission)
+                .where(and_(
+                    models.AssignmentSubmission.material_id == assignment_id,
+                    models.AssignmentSubmission.student_id == student.id
+                ))
+            )
+            user_submission = submission.scalar()
+
     return templates.TemplateResponse(
         "assignments/detail.html",
         {
             "request": request,
+            "current_user": current_user,
             "subject": subject,
             "assignment": assignment,
+            "user_submission": user_submission,  # Передаем отправку студента
             "current_time": datetime.now()
         }
     )
@@ -168,12 +247,12 @@ async def grade_submission(
     await get_subject_with_groups(db, subject_id, current_user)
 
     submission = await db.execute(
-        select(models.Submission)
-        .where(models.Submission.id == submission_id)
+        select(Submission)
+        .where(Submission.id == submission_id)
     )
     submission = submission.scalar()
 
-    if not submission or submission.assignment_id != assignment_id:
+    if not submission or submission.material_id != assignment_id:
         raise HTTPException(404, "Submission not found")
 
     submission.grade = grade
@@ -183,80 +262,259 @@ async def grade_submission(
 
     await db.commit()
     return RedirectResponse(
-        f"/subjects/{subject_id}/assignments/{assignment_id}",
+        f"/subjects/{subject_id}/assignments/assignment_{assignment_id}",
         status_code=303
     )
 
 
-@router.post("/{assignment_id}/submit")
+@router.post("/{assignment_id}/submit", response_class=RedirectResponse)
 async def submit_assignment(
+    subject_id: int,
+    assignment_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    try:
+        # Проверка прав студента
+        if current_user.role != "student":
+            raise HTTPException(403, "Только студенты могут отправлять задания")
+
+        # Получаем задание
+        assignment = await db.execute(
+            select(models.CourseMaterial)
+            .options(selectinload(models.CourseMaterial.group))
+            .where(models.CourseMaterial.id == assignment_id)
+        )
+        assignment = assignment.scalar()
+
+        if not assignment:
+            raise HTTPException(404, "Задание не найдено")
+
+        # Проверка дедлайна
+        if assignment.deadline < datetime.now():
+            raise HTTPException(400, "Срок сдачи задания истек")
+
+        # Получаем студента
+        student = await db.execute(
+            select(models.Student)
+            .where(models.Student.user_id == current_user.id)
+        )
+        student = student.scalar()
+
+        if not student or student.group_id != assignment.group_id:
+            raise HTTPException(403, "Вы не состоите в нужной группе")
+
+        # Проверяем существующую отправку
+        existing_submission = await db.execute(
+            select(models.AssignmentSubmission)
+            .where(and_(
+                models.AssignmentSubmission.student_id == student.id,
+                models.AssignmentSubmission.material_id == assignment_id
+            ))
+        )
+        existing = existing_submission.scalar()
+
+        # Создаем директорию студента
+        student_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}/assignments/assignment_{assignment_id}/student_{student.id}"
+        student_dir.mkdir(parents=True, exist_ok=True)
+
+        # Генерируем имя файла
+        file_ext = Path(file.filename).suffix
+        file_name = f"submission_{uuid.uuid4()}{file_ext}"
+        file_path = student_dir / file_name
+
+        # Сохраняем файл
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Обновляем или создаем запись
+        if existing:
+            existing.file_path = str(file_path.relative_to(UPLOAD_DIR))
+            existing.submission_date = datetime.now()
+            existing.status = "submitted"
+        else:
+            submission = models.AssignmentSubmission(
+                student_id=student.id,
+                material_id=assignment_id,
+                file_path=str(file_path.relative_to(UPLOAD_DIR)),
+                status="submitted",
+                submission_date=datetime.now()
+            )
+            db.add(submission)
+
+        await db.commit()
+
+        return RedirectResponse(
+            f"/subjects/{subject_id}/assignments/{assignment_id}?success=Файл успешно отправлен",
+            status_code=303
+        )
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Assignment submission error: {str(e)}")
+        return RedirectResponse(
+            f"/subjects/{subject_id}/assignments/{assignment_id}?error=Ошибка отправки файла",
+            status_code=303
+        )
+
+
+@router.post("/", response_class=RedirectResponse)
+async def create_assignment(
         subject_id: int,
-        assignment_id: int,
-        file: UploadFile = File(...),
+        request: Request,
+        title: str = Form(...),
+        description: str = Form(None),
+        group_id: int = Form(...),
+        deadline: datetime = Form(...),
+        file: UploadFile = File(None),
         db: AsyncSession = Depends(database.get_db),
         current_user: models.User = Depends(get_current_user)
 ):
-    # Проверка прав студента
-    if current_user.role != "student":
-        raise HTTPException(403, "Only students can submit assignments")
+    try:
+        # Проверка прав преподавателя
+        subject = await get_subject_with_groups(db, subject_id, current_user)
 
-    # Получение задания
+        # Проверка дедлайна
+        if deadline < datetime.now():
+            return RedirectResponse(
+                f"/subjects/{subject_id}/assignments?error=Дедлайн должен быть в будущем",
+                status_code=303
+            )
+
+        # Создаем запись задания
+        new_assignment = models.CourseMaterial(
+            title=title,
+            description=description,
+            type="assignment",
+            file_path="",  # Временное значение
+            subject_id=subject_id,
+            group_id=group_id,
+            deadline=deadline,
+            created_at=datetime.now()
+        )
+
+        db.add(new_assignment)
+        await db.commit()
+        await db.refresh(new_assignment)
+
+        # Создаем директорию для задания
+        assignment_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}/assignments/assignment_{new_assignment.id}"
+        assignment_dir.mkdir(parents=True, exist_ok=True)
+
+        # Обработка файла
+        if file and file.filename:
+            file_ext = Path(file.filename).suffix
+            file_name = f"assignment_{uuid.uuid4()}{file_ext}"
+        else:
+            file_name = f"assignment_{uuid.uuid4()}.txt"
+            content = f"Название: {title}\nОписание: {description}\nДедлайн: {deadline.strftime('%d.%m.%Y %H:%M')}"
+
+        file_path = assignment_dir / file_name
+
+        # Сохраняем файл
+        if file and file.filename:
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+        else:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+
+        # Обновляем путь к файлу
+        new_assignment.file_path = str(file_path.relative_to(UPLOAD_DIR))
+        await db.commit()
+
+        return RedirectResponse(
+            f"/subjects/{subject_id}/assignments?success=Задание успешно создано",
+            status_code=303
+        )
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Assignment creation error: {str(e)}")
+        return RedirectResponse(
+            f"/subjects/{subject_id}/assignments?error=Ошибка создания задания",
+            status_code=303
+        )
+
+
+from fastapi.responses import FileResponse
+
+
+@router.get("/download/{material_id}")
+async def download_assignment_file(
+        subject_id: int,
+        material_id: int,
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
     assignment = await db.execute(
         select(models.CourseMaterial)
-        .options(selectinload(models.CourseMaterial.group))
-        .where(models.CourseMaterial.id == assignment_id)
+        .where(models.CourseMaterial.id == material_id)
     )
     assignment = assignment.scalar()
 
-    # Проверка дедлайна
-    if assignment.deadline < datetime.now():
-        raise HTTPException(400, "Assignment deadline has passed")
+    if not assignment or not assignment.file_path:
+        raise HTTPException(404, "File not found")
 
-    # Проверка принадлежности к группе
-    student = await db.execute(
-        select(models.Student)
-        .where(models.Student.user_id == current_user.id)
+    # Проверка прав доступа
+    await get_subject_with_groups(db, subject_id, current_user)
+
+    file_path = Path(UPLOAD_DIR) / assignment.file_path
+    if not file_path.exists():
+        raise HTTPException(404, "File not found")
+
+    return FileResponse(
+        file_path,
+        filename=f"{assignment.title}{file_path.suffix}",
+        media_type="application/octet-stream"
     )
-    student = student.scalar()
 
-    if not student or student.group_id != assignment.group_id:
-        raise HTTPException(403, "Not enrolled in this group")
 
-    # Сохранение файла
-    file_dir = Path(UPLOAD_DIR) / f"assignment_{assignment_id}"
-    file_dir.mkdir(parents=True, exist_ok=True)
+from fastapi.concurrency import run_in_threadpool
 
-    file_name = f"{student.id}_{uuid.uuid4().hex}{Path(file.filename).suffix}"
-    file_path = file_dir / file_name
-
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    # Создание или обновление submission
-    existing = await db.execute(
-        select(models.Submission)
-        .where(and_(
-            models.Submission.student_id == student.id,
-            models.Submission.assignment_id == assignment_id
-        ))
-    )
-    existing = existing.scalar()
-
-    if existing:
-        existing.file_path = str(file_path)
-        existing.submitted_at = datetime.now()
-        existing.status = "submitted"
-    else:
-        submission = models.Submission(
-            student_id=student.id,
-            assignment_id=assignment_id,
-            file_path=str(file_path),
-            status="submitted"
+@router.get("/submissions/{submission_id}/download")
+async def download_submission_file(
+        subject_id: int,
+        submission_id: int,
+        db: AsyncSession = Depends(database.get_db),
+        current_user: models.User = Depends(get_current_user)
+):
+    try:
+        # Асинхронно получаем данные отправки
+        submission = await db.execute(
+            select(models.AssignmentSubmission)
+            .options(
+                selectinload(models.AssignmentSubmission.material)
+                .selectinload(models.CourseMaterial.subject)
+                .selectinload(models.Subject.teacher),
+                selectinload(models.AssignmentSubmission.student)
+                .selectinload(models.Student.user)
+            )
+            .where(models.AssignmentSubmission.id == submission_id)
         )
-        db.add(submission)
+        submission = submission.scalar()
 
-    await db.commit()
-    return RedirectResponse(
-        f"/subjects/{subject_id}/assignments",
-        status_code=303
-    )
+        if not submission or not submission.file_path:
+            raise HTTPException(404, "File not found")
+
+        # Проверка прав преподавателя
+        if current_user.role == "teacher":
+            if submission.material.subject.teacher.user_id != current_user.id:
+                raise HTTPException(403, "Access denied")
+
+        # Асинхронная проверка существования файла
+        full_path = Path(UPLOAD_DIR) / submission.file_path
+        if not await run_in_threadpool(full_path.exists):
+            raise HTTPException(404, "File not found")
+
+        return FileResponse(
+            str(full_path),
+            filename=f"Submission_{submission.student.user.first_name}_{submission.student.user.last_name}{full_path.suffix}"
+        )
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Download error: {str(e)}")
+        raise HTTPException(500, "Internal server error")
