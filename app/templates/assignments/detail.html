@@ -76,7 +76,7 @@
                         <tbody>
                             {% for submission in assignment.submissions %}
                             <tr>
-                                <td>{{ submission.student.user.full_name }}</td>
+                                <td>{{ submission.student.user.first_name }} {{ submission.student.user.last_name }}</td>
                                 <td class="text-muted small">{{ submission.student.group.number }}</td>
                                 <td>
                                     <a href="/subjects/{{ subject.id }}/assignments/submissions/{{ submission.id }}/download"
