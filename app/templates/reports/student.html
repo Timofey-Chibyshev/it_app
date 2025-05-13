@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Мои оценки{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Мои оценки</h1>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Предмет</th>
+                            <th>Средний балл</th>
+                            <th>Подробнее</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subject, avg_grade in grades %}
+                        <tr>
+                            <td>{{ subject }}</td>
+                            <td>
+                                <span class="badge bg-primary rounded-pill">
+                                    {{ avg_grade|round(1) }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="#" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">
+                                Нет данных об оценках
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

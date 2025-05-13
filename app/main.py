@@ -6,7 +6,7 @@ from app.routers import (
     auth, users, groups,
     subjects, materials,
     assignments, calendar,
-    home
+    home, reports
 )
 
 from fastapi.staticfiles import StaticFiles
@@ -26,6 +26,7 @@ app.include_router(subjects.router)
 app.include_router(materials.router)
 app.include_router(assignments.router)
 app.include_router(calendar.router)
+app.include_router(reports.router)
 
 @app.on_event("startup")
 async def startup():
