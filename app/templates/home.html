@@ -17,7 +17,7 @@
         <div class="row g-4">
             {% if current_user.role == "teacher" %}
                 <!-- Панель преподавателя -->
-                <div class="col-12 col-md-6 col-xl-4">
+                <div class="col-12 col-md-6 col-xl-3">
                     <div class="h-100">
                         <a href="/subjects/my" class="btn btn-primary h-100 w-100 dashboard-card">
                             <i class="bi bi-journal-bookmark"></i>
@@ -26,7 +26,7 @@
                     </div>
                 </div>
 
-                <div class="col-12 col-md-6 col-xl-4">
+                <div class="col-12 col-md-6 col-xl-3">
                     <div class="h-100">
                         <a href="/calendar/classes" class="btn btn-info h-100 w-100 dashboard-card">
                             <i class="bi bi-calendar-week"></i>
@@ -35,11 +35,20 @@
                     </div>
                 </div>
 
-                <div class="col-12 col-md-6 col-xl-4">
+                <div class="col-12 col-md-6 col-xl-3">
                     <div class="h-100">
                         <a href="/search" class="btn btn-success h-100 w-100 dashboard-card">
                             <i class="bi bi-search"></i>
                             <span class="mt-2">Поиск</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="h-100">
+                        <a href="/reports" class="btn btn-secondary h-100 w-100 dashboard-card">
+                            <i class="bi bi-graph-up"></i>
+                            <span class="mt-2">Отчетность</span>
                         </a>
                     </div>
                 </div>
@@ -78,6 +87,15 @@
                         <a href="/search" class="btn btn-success h-100 w-100 dashboard-card">
                             <i class="bi bi-search"></i>
                             <span class="mt-2">Поиск</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="h-100">
+                        <a href="/reports" class="btn btn-secondary h-100 w-100 dashboard-card">
+                            <i class="bi bi-graph-up"></i>
+                            <span class="mt-2">Отчетность</span>
                         </a>
                     </div>
                 </div>

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Отчетность по группам{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Отчетность по группам</h1>
+
+    {% for subject in subjects %}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">{{ subject.name }}</h5>
+        </div>
+        
+        <div class="card-body">
+            {% for group in subject.groups %}
+            <div class="mb-4">
+                <h6 class="mb-3">Группа {{ group.number }}</h6>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Студент</th>
+                                <th>Средний балл</th>
+                                <th>Последняя оценка</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in group.students %}
+                            {% set submissions = student.submissions|selectattr('material.subject_id', 'equalto', subject.id)|list %}
+                            {% set relevant_submissions = submissions|selectattr('grade')|list %}
+                            <tr>
+                                <td>{{ student.user.last_name }} {{ student.user.first_name }}</td>
+                                <td>
+                                    {% if relevant_submissions %}
+                                    {{ ((relevant_submissions|map(attribute='grade')|sum / relevant_submissions|length)|round(1)) }}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if relevant_submissions %}
+                                    <span class="badge bg-{{ 'success' if relevant_submissions[-1].grade >= 60 else 'warning' }}">
+                                        {{ relevant_submissions[-1].grade }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
