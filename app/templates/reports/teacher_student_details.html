@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Оценки студента - {{ student.user.last_name }} {{ student.user.first_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1">{{ student.user.last_name }} {{ student.user.first_name }}</h1>
+            <h4 class="text-muted">{{ subject.name }}</h4>
+        </div>
+        <a href="{{ url_for('reports_main') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Назад
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Задание</th>
+                            <th>Дедлайн</th>
+                            <th>Оценка</th>
+                            <th>Статус</th>
+                            <th>Комментарий</th>
+                            <th>Дата сдачи</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in submissions %}
+                        <tr>
+                            <td>{{ sub.material.title }}</td>
+                            <td>{{ sub.material.deadline|datetime_format }}</td>
+                            <td>
+                                {% if sub.grade %}
+                                <span class="badge bg-{{ 'success' if sub.grade >= 60 else 'warning' }}">
+                                    {{ sub.grade }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ sub.status|ru_status }}</td>
+                            <td class="text-truncate" style="max-width: 200px;">
+                                {{ sub.feedback or "—" }}
+                            </td>
+                            <td>{{ sub.submission_date|datetime_format }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                Нет данных об оценках
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

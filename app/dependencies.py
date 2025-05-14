@@ -50,7 +50,13 @@ def configure_jinja_filters():
             'graded': 'Оценено',
             'rejected': 'Отклонено'
         }.get(s, s),
-        "file_extension": lambda path: Path(path).suffix
+        "file_extension": lambda path: Path(path).suffix,
+        "status_badge": lambda s: {
+            'submitted': 'secondary',
+            'graded': 'success',
+            'rejected': 'danger'
+        }.get(s, 'light'),
+        "grade_color": lambda g: 'success' if g >= 60 else 'warning' if g else 'secondary'
     })
 
     logger.info("Jinja2 filters configured successfully")

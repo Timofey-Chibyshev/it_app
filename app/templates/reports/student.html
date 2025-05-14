@@ -9,32 +9,33 @@
     <div class="card shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover align-middle">
                     <thead class="table-light">
                         <tr>
                             <th>Предмет</th>
                             <th>Средний балл</th>
-                            <th>Подробнее</th>
+                            <th>Действия</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for subject, avg_grade in grades %}
+                        {% for subject_data in grades %}
                         <tr>
-                            <td>{{ subject }}</td>
+                            <td>{{ subject_data.name }}</td>
                             <td>
                                 <span class="badge bg-primary rounded-pill">
-                                    {{ avg_grade|round(1) }}
+                                    {{ subject_data.avg_grade|round(1) if subject_data.avg_grade else 0 }}
                                 </span>
                             </td>
                             <td>
-                                <a href="#" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-arrow-right"></i>
+                                <a href="{{ url_for('student_subject_report', subject_id=subject_data.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-list-ul"></i> Подробнее
                                 </a>
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="3" class="text-center text-muted">
+                            <td colspan="3" class="text-center text-muted py-4">
                                 Нет данных об оценках
                             </td>
                         </tr>

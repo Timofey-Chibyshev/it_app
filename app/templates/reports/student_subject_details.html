@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Детализация оценок - {{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Оценки по предмету: {{ subject.name }}</h1>
+            <a href="{{ url_for('reports_main') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Назад
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Задание</th>
+                            <th>Оценка</th>
+                            <th>Дата сдачи</th>
+                            <th>Статус</th>
+                            <th>Комментарий</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grade in grades %}
+                        <tr>
+                            <td>{{ grade.title }}</td>
+                            <td>
+                                {% if grade.grade %}
+                                <span class="badge bg-{{ 'success' if grade.grade >= 60 else 'warning' }}">
+                                    {{ grade.grade }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ grade.submission_date|datetime_format("%d.%m.%Y %H:%M") }}</td>
+                            <td>{{ grade.status|ru_status }}</td>
+                            <td class="text-truncate" style="max-width: 200px;">
+                                {{ grade.feedback or "—" }}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                Нет данных об оценках
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
