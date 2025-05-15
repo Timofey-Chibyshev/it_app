@@ -19,56 +19,70 @@
         <div class="card-body">
             {% if materials %}
             <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th scope="col">Название</th>
-                            <th scope="col">Тип</th>
-                            <th scope="col">Группа</th>
-                            <th scope="col">Файл</th>
-                            <th scope="col">Дата загрузки</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for material in materials %}
-                        <tr class="align-middle">
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <i class="bi
-                                        {% if material.type == 'lecture' %}bi-journal-text text-primary
-                                        {% elif material.type == 'practice' %}bi-pencil-square text-success
-                                        {% else %}bi-file-earmark-text text-warning{% endif %}
-                                        me-2 fs-5"></i>
-                                    {{ material.title }}
-                                </div>
-                                {% if material.description %}
-                                <div class="text-muted small mt-1">{{ material.description }}</div>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="badge
-                                    {% if material.type == 'lecture' %}bg-primary
-                                    {% elif material.type == 'practice' %}bg-success
-                                    {% else %}bg-warning text-dark{% endif %}">
-                                    {{ material.type|ru_type }}
-                                </span>
-                            </td>
-                            <td>{{ material.group.number }}</td>
-                            <td>
-                                <a href="/subjects/{{ subject.id }}/materials/download/{{ material.id }}"
-                                   class="btn btn-sm btn-outline-secondary"
-                                   download
-                                   title="Скачать файл">
-                                    <i class="bi bi-download me-1"></i>
-                                    {{ material.title }}{{ material.file_path|file_extension }}
-                                </a>
-                            </td>
-                            <td>{{ material.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th scope="col">Название</th>
+                <th scope="col">Тип</th>
+                <th scope="col">Группа</th>
+                <th scope="col">Файл</th>
+                <th scope="col">Дата загрузки</th>
+                {% if current_user.role == 'teacher' %}
+                <th scope="col">Действия</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for material in materials %}
+            <tr class="align-middle">
+                <td>
+                    <div class="d-flex align-items-center">
+                        <i class="bi
+                            {% if material.type == 'lecture' %}bi-journal-text text-primary
+                            {% elif material.type == 'practice' %}bi-pencil-square text-success
+                            {% else %}bi-file-earmark-text text-warning{% endif %}
+                            me-2 fs-5"></i>
+                        {{ material.title }}
+                    </div>
+                    {% if material.description %}
+                    <div class="text-muted small mt-1">{{ material.description }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge
+                        {% if material.type == 'lecture' %}bg-primary
+                        {% elif material.type == 'practice' %}bg-success
+                        {% else %}bg-warning text-dark{% endif %}">
+                        {{ material.type|ru_type }}
+                    </span>
+                </td>
+                <td>{{ material.group.number }}</td>
+                <td>
+                    <a href="/subjects/{{ subject.id }}/materials/download/{{ material.id }}"
+                       class="btn btn-sm btn-outline-secondary"
+                       download
+                       title="Скачать файл">
+                        <i class="bi bi-download me-1"></i>
+                        {{ material.title }}{{ material.file_path|file_extension }}
+                    </a>
+                </td>
+                <td>{{ material.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                {% if current_user.role == 'teacher' %}
+                <td>
+                    <form action="/subjects/{{ subject.id }}/materials/{{ material.id }}/delete"
+                          method="post"
+                          onsubmit="return confirm('Вы уверены, что хотите удалить этот материал?')">
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
             {% else %}
             <div class="text-center py-4">
                 <i class="bi bi-inbox fs-1 text-muted"></i>

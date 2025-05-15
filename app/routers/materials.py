@@ -197,3 +197,56 @@ async def download_material(
         filename=f"{material.title}{full_path.suffix}",
         media_type="application/octet-stream"
     )
+
+@router.post("/{material_id}/delete", response_class=RedirectResponse)
+async def delete_material(
+    subject_id: int,
+    material_id: int,
+    request: Request,
+    db: AsyncSession = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    try:
+        # Получаем материал
+        material = await db.execute(
+            select(models.CourseMaterial)
+            .where(models.CourseMaterial.id == material_id)
+        )
+        material = material.scalar()
+
+        if not material or material.subject_id != subject_id:
+            raise HTTPException(404, "Material not found")
+
+        # Проверка прав доступа
+        subject = await get_subject_with_check(db, subject_id, current_user)
+        if current_user.role != "teacher":
+            raise HTTPException(403, "Only teachers can delete materials")
+
+        # Удаление файла
+        file_path = Path(UPLOAD_DIR) / material.file_path
+        if file_path.exists():
+            try:
+                file_path.unlink()
+            except Exception as e:
+                logger.error(f"Error deleting file: {e}")
+
+        # Удаление материала из БД
+        await db.delete(material)
+        await db.commit()
+
+        return RedirectResponse(
+            f"/subjects/{subject_id}/materials?success=Material+deleted",
+            status_code=303
+        )
+
+    except HTTPException as e:
+        return RedirectResponse(
+            f"/subjects/{subject_id}/materials?error={e.detail}",
+            status_code=303
+        )
+    except Exception as e:
+        logger.error(f"Error deleting material: {e}")
+        return RedirectResponse(
+            f"/subjects/{subject_id}/materials?error=Delete+failed",
+            status_code=303
+        )

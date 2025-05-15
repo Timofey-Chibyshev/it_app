@@ -89,7 +89,7 @@ class CourseMaterial(Base):
     # Связи ORM
     subject = relationship("Subject", back_populates="materials")
     group = relationship("Group")
-    submissions = relationship("AssignmentSubmission", back_populates="material")  # Сданные задания
+    submissions = relationship("AssignmentSubmission", back_populates="material", cascade="all, delete")  # Сданные задания
 
     # Проверка что дедлайн в будущем
     __table_args__ = (
