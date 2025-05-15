@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 import asyncio
 from datetime import datetime, timedelta
@@ -18,12 +18,18 @@ engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 async def init_db():
+    # Создаем таблицы, если их нет
     async with engine.begin() as conn:
-        await conn.execute(text("DROP TABLE IF EXISTS users, groups, subjects, course_materials, assignment_submissions, schedules, teachers, students, group_subject CASCADE"))
         await conn.run_sync(models.Base.metadata.create_all)
 
     async with async_session() as session:
         try:
+            # Проверяем существование данных
+            result = await session.execute(select(models.User))
+            if result.scalars().first():
+                print("✅ Данные уже инициализированы")
+                return
+
             # Создаем преподавателей
             teachers_data = [
                 {
@@ -214,13 +220,14 @@ async def init_db():
             session.add_all(schedules)
 
             await session.commit()
-            print("✅ Тестовые данные успешно созданы!")
+            print("✅ Тестовые данные созданы успешно")
 
         except Exception as e:
             await session.rollback()
-            print(f"❌ Ошибка при инициализации БД: {e}")
+            print(f"❌ Ошибка: {e}")
             raise
+        finally:
+            await engine.dispose()
 
 if __name__ == "__main__":
     asyncio.run(init_db())
-    

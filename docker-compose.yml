@@ -20,6 +20,7 @@ services:
 
   app:
     build: .
+    command: sh -c "python -m init_db && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     environment:
       - DB_HOST=postgres
       - DB_NAME=edu_platform_db
@@ -28,6 +29,9 @@ services:
       - UPLOAD_DIR=/uploads/assignments
     volumes:
       - uploads_volume:/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   nginx:
     build: ./nginx
