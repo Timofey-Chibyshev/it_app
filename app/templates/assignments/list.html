@@ -27,6 +27,9 @@
                             <th>Статус</th>
                             <th>Материалы</th>
                             <th>Действия</th>
+                            {% if current_user.role == 'teacher' %}
+                            <th>Удаление</th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -114,6 +117,18 @@
                                     <i class="bi bi-eye me-1"></i>Просмотр
                                 </a>
                             </td>
+
+                            {% if current_user.role == 'teacher' %}
+                            <td>
+                                <form action="/subjects/{{ subject.id }}/assignments/{{ assignment.id }}/delete"
+                                      method="post"
+                                      onsubmit="return confirm('Вы уверены, что хотите удалить это задание? Все сданные работы будут удалены!')">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>

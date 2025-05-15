@@ -488,3 +488,53 @@ async def download_submission_file(
     except Exception as e:
         logger.error(f"Download error: {str(e)}")
         raise HTTPException(500, "Internal server error")
+
+@router.post("/{assignment_id}/delete", response_class=RedirectResponse)
+async def delete_assignment(
+    subject_id: int,
+    assignment_id: int,
+    request: Request,
+    db: AsyncSession = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    try:
+        # Проверка прав преподавателя
+        subject = await get_subject_with_groups(db, subject_id, current_user)
+        if current_user.role != "teacher":
+            raise HTTPException(403, "Forbidden")
+
+        # Получаем задание
+        assignment = await db.execute(
+            select(models.CourseMaterial)
+            .where(models.CourseMaterial.id == assignment_id)
+        )
+        assignment = assignment.scalar()
+
+        if not assignment or assignment.subject_id != subject_id:
+            raise HTTPException(404, "Assignment not found")
+
+        # Удаление файлов задания и всех сдач
+        assignment_dir = Path(UPLOAD_DIR) / f"subject_{subject_id}/assignments/assignment_{assignment_id}"
+        if assignment_dir.exists():
+            shutil.rmtree(assignment_dir)
+
+        # Удаление из БД
+        await db.delete(assignment)
+        await db.commit()
+
+        return RedirectResponse(
+            f"/subjects/{subject_id}/assignments?success=Задание+удалено",
+            status_code=303
+        )
+
+    except HTTPException as e:
+        return RedirectResponse(
+            f"/subjects/{subject_id}/assignments?error={e.detail}",
+            status_code=303
+        )
+    except Exception as e:
+        logger.error(f"Error deleting assignment: {str(e)}")
+        return RedirectResponse(
+            f"/subjects/{subject_id}/assignments?error=Ошибка+удаления",
+            status_code=303
+        )
