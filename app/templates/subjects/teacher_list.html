@@ -72,26 +72,22 @@
                         <div class="card-header">
                             <h5 class="card-title mb-1">
                                 <i class="bi bi-book-half me-2"></i>{{ subject.name }}
-                                {% if subject.type == "Лекция" %}
-                                    <span class="badge bg-info ms-2">{{ subject.type }}</span>
-                                {% elif subject.type == "Практика" %}
-                                    <span class="badge bg-warning text-dark ms-2">{{ subject.type }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary ms-2">{{ subject.type }}</span>
-                                {% endif %}
                             </h5>
                         </div>
 
                         <div class="card-body">
-                            <p class="card-text text-muted">
-                            <!--    {{ subject.type or "Без типа" }} -->
-                            </p>
-
-                            <div class="mb-3">
+                            <div class="mb-3 d-flex gap-2 flex-wrap">
                                 <span class="badge bg-primary">
                                     <i class="bi bi-people-fill me-1"></i>
                                     Групп: {{ subject.groups|length }}
                                 </span>
+                                {% if subject.type == "lecture" %}
+                                    <span class="badge lecture-badge">{{ subject.type }}</span>
+                                {% elif subject.type == "practice" %}
+                                    <span class="badge practice-badge">{{ subject.type }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ subject.type }}</span>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -108,13 +104,13 @@
                                        title="Просмотр заданий">
                                        <i class="bi bi-card-checklist me-1"></i>Задания
                                     </a>
-                                    <a href="/subjects/{{ subject.id }}"
-                                       class="btn btn-sm btn-outline-secondary"
-                                       title="Управление предметом">
-                                       <i class="bi bi-gear-wide me-1"></i>Управление
-                                    </a>
+<!--                                    <a href="/subjects/{{ subject.id }}"-->
+<!--                                       class="btn btn-sm btn-outline-secondary"-->
+<!--                                       title="Управление предметом">-->
+<!--                                       <i class="bi bi-gear-wide me-1"></i>Управление-->
+<!--                                    </a>-->
                                 </div>
-                             </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -132,6 +128,20 @@
         </div>
     </div>
 </div>
+
+
+<style>
+    .lecture-badge {
+        background-color: #17a2b8 !important;  /* Bootstrap's info color */
+        color: white !important;
+    }
+
+    .practice-badge {
+        background-color: #ffc107 !important;  /* Bootstrap's warning color */
+        color: black !important;
+    }
+</style>
+
 {% endblock %}
 
 {% block scripts %}

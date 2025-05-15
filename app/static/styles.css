@@ -542,3 +542,13 @@ th.desc::after {
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
+
+.badge.lecture-badge {
+    background-color: #17a2b8 !important;
+    color: white !important;
+}
+
+.badge.practice-badge {
+    background-color: #ffc107 !important;
+    color: black !important;
+}

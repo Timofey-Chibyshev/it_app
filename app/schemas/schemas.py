@@ -173,4 +173,7 @@ class DeadlineResponse(BaseModel):
     file_path: Optional[str] = None  # Если нужно отображать прикрепленный файл
 
     model_config = ConfigDict(from_attributes=True)
+
+class SubjectUpdateGroups(BaseModel):
+    group_ids: list[int]
     

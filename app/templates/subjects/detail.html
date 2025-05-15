@@ -13,10 +13,30 @@
         
         {% if is_teacher %}
         <div class="mt-4">
+            <h5>Управление группами:</h5>
+            <form method="POST" action="{{ url_for('attach_groups', subject_id=subject.id) }}">
+                <div class="form-group">
+                    <label>Выберите группы:</label>
+                    <select class="form-control" name="groups" multiple size="5">
+                        {% for group in all_groups %}
+                        <option value="{{ group.id }}"
+                            {% if group in subject.groups %}selected{% endif %}>
+                            {{ group.number }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">
+                    Сохранить изменения
+                </button>
+            </form>
+        </div>
+        {% else %}
+        <div class="mt-4">
             <h5>Прикрепленные группы:</h5>
-            <ul>
+            <ul class="list-group">
                 {% for group in subject.groups %}
-                <li>{{ group.name }}</li>
+                <li class="list-group-item">{{ group.number }}</li>
                 {% endfor %}
             </ul>
         </div>
