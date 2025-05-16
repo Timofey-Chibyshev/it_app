@@ -186,7 +186,7 @@ async def handle_create_subject(
             groups=groups
         )
         subject = await create_subject(subject_data, db, current_user)
-        return RedirectResponse(f"/subjects/{subject.id}", status_code=303)
+        return RedirectResponse(f"/subjects/my", status_code=303)
 
     except HTTPException as e:
         groups = (await db.execute(select(models.Group))).scalars().all()
@@ -203,45 +203,3 @@ async def handle_create_subject(
         )
 
 
-@router.get("/{subject_id}", response_class=HTMLResponse)
-async def subject_detail_page(
-        subject_id: int,
-        request: Request,
-        db: AsyncSession = Depends(database.get_db),
-        current_user: models.User = Depends(get_current_user)
-):
-    subject = (await db.execute(
-        select(models.Subject)
-        .options(
-            selectinload(models.Subject.groups),
-            selectinload(models.Subject.teacher),
-            selectinload(models.Subject.materials)
-        )
-        .where(models.Subject.id == subject_id)
-    )).scalar()
-
-    if not subject:
-        raise HTTPException(status_code=404, detail="Subject not found")
-
-    # Проверка доступа для студентов
-    if current_user.role == "student":
-        student = (await db.execute(
-            select(models.Student)
-            .where(models.Student.user_id == current_user.id)
-            .options(selectinload(models.Student.group))
-        )).scalar()
-
-        if not student or student.group_id not in [g.id for g in subject.groups]:
-            raise HTTPException(status_code=403, detail="Access denied")
-
-    return templates.TemplateResponse(
-        "subjects/detail.html",
-        {
-            "request": request,
-            "subject": subject,
-            "current_user": current_user,
-            "is_teacher": current_user.role == "teacher",
-            "materials": subject.materials,
-            "groups": subject.groups
-        }
-    )
