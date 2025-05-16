@@ -552,3 +552,44 @@ th.desc::after {
     background-color: #ffc107 !important;
     color: black !important;
 }
+
+/* Финализируем стили кнопки */
+a.btn.btn-primary.btn-sm.btn-subject-create {
+    padding: 4px 12px !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    width: auto !important; /* Важное исправление */
+    margin-left: 15px !important;
+    flex-shrink: 0;
+    display: inline-flex !important;
+    align-items: center;
+}
+
+/* Иконка */
+a.btn.btn-primary.btn-sm.btn-subject-create > i.bi {
+    font-size: 12px !important;
+    margin-right: 5px !important;
+}
+
+/* Фикс для контейнера */
+.d-flex.justify-content-between.align-items-center.mb-4 {
+    max-width: 100%;
+    flex-wrap: nowrap !important;
+}
+
+/* Адаптивность для мобилок */
+@media (max-width: 576px) {
+    a.btn.btn-primary.btn-sm.btn-subject-create {
+        padding: 3px 8px !important;
+        font-size: 12px !important;
+    }
+    
+    .d-flex.justify-content-between.align-items-center.mb-4 {
+        flex-wrap: wrap !important;
+        gap: 10px;
+    }
+    
+    .d-flex.justify-content-between.align-items-center.mb-4 h1 {
+        width: 100%;
+    }
+}
