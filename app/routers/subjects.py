@@ -136,9 +136,12 @@ async def subjects_list_page(
     }
 
     if current_user.role == "teacher":
+
+        unique_group_ids = {group.id for subject in subjects for group in subject.groups}
+
         context.update({
             "total_subjects": len(subjects),
-            "total_groups": sum(len(s.groups) for s in subjects),
+            "total_groups": len(unique_group_ids),
             "template": "teacher"
         })
         template = "subjects/teacher_list.html"
