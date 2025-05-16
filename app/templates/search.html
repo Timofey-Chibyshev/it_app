@@ -52,54 +52,27 @@ document.getElementById('searchInput').addEventListener('input', async function(
         
         let html = '';
         
-        if (data.results.subjects.length > 0 || data.results.teachers.length > 0) {
-            html += '<div class="row g-3">';
-            
-            // Предметы
-            if (data.results.subjects.length > 0) {
-                html += `
+        if (data.results.length > 0) {
+            html += `
+            <div class="row g-3">
                 <div class="col-12">
-                    <h5 class="text-muted mb-3">Предметы</h5>
+                    <h5 class="text-muted mb-3">Найденные предметы</h5>
                     <div class="row g-3">
-                        ${data.results.subjects.map(subj => `
+                        ${data.results.map(item => `
                         <div class="col-md-6">
-                            <a href="${subj.url}" class="card result-card text-decoration-none">
+                            <a href="${item.url}" class="card result-card text-decoration-none">
                                 <div class="card-body">
-                                    <h6 class="card-title">${subj.name}</h6>
+                                    <h6 class="card-title">${item.name}</h6>
                                     <div class="text-muted small">
-                                        ${subj.teacher} • ${subj.type === 'lecture' ? 'Лекция' : 'Практика'}
+                                        ${item.teacher} • ${item.type === 'lecture' ? 'Лекция' : 'Практика'}
                                     </div>
                                 </div>
                             </a>
                         </div>
                         `).join('')}
                     </div>
-                </div>`;
-            }
-
-            // Преподаватели
-            if (data.results.teachers.length > 0) {
-                html += `
-                <div class="col-12 mt-4">
-                    <h5 class="text-muted mb-3">Преподаватели</h5>
-                    <div class="row g-3">
-                        ${data.results.teachers.map(teacher => `
-                        <div class="col-md-6">
-                            <a href="${teacher.url}" class="card result-card text-decoration-none">
-                                <div class="card-body">
-                                    <h6 class="card-title">${teacher.name}</h6>
-                                    <div class="text-muted small">
-                                        Преподаватель
-                                    </div>
-                                </div>
-                            </a>
-                        </div>
-                        `).join('')}
-                    </div>
-                </div>`;
-            }
-
-            html += '</div>';
+                </div>
+            </div>`;
         } else {
             html = `<div class="text-center text-muted py-4">Ничего не найдено</div>`;
         }

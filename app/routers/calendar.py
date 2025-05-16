@@ -11,7 +11,7 @@ from app.schemas import schemas
 from app.models import models
 from app import database
 from app.auth import get_current_user
-from sqlalchemy import and_, select
+from sqlalchemy import String, and_, cast, select
 from sqlalchemy.orm import selectinload
 from app.dependencies import templates
 
@@ -161,7 +161,7 @@ async def student_deadlines(
         )
         .where(and_(
             models.CourseMaterial.group_id == student.group_id,
-            models.CourseMaterial.type == "assignment",
+            cast(models.CourseMaterial.type, String) == "assignment",  # ✅ Исправлено
             models.CourseMaterial.deadline > datetime.now() - timedelta(days=7)
         ))
         .order_by(models.CourseMaterial.deadline.asc())

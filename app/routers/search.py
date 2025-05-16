@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import String, cast, or_, select, text
-from sqlalchemy.orm import selectinload
+from sqlalchemy import String, cast, or_, select, union_all
+from sqlalchemy.orm import selectinload, aliased
 
 from app.models import models
 from app.dependencies import templates
@@ -33,52 +33,60 @@ async def search_results(
     if len(query) < 3:
         return JSONResponse(content={"results": []})
 
-    # Поиск по предметам (оставляем без изменений)
-    subjects_result = await db.execute(
+    # Создаем базовые запросы с явной загрузкой связей
+    stmt1 = (
         select(models.Subject)
+        .options(selectinload(models.Subject.teacher))
+        .where(models.Subject.name.ilike(f"%{query}%")))
+    
+    stmt2 = (
+        select(models.Subject)
+        .join(models.Teacher, models.Subject.teacher_id == models.Teacher.user_id)
+        .join(models.User, models.Teacher.user_id == models.User.id)
+        .options(selectinload(models.Subject.teacher))
+        .where(
+            or_(
+                models.User.first_name.ilike(f"%{query}%"),
+                models.User.last_name.ilike(f"%{query}%"),
+                models.User.patronymic.ilike(f"%{query}%")
+            )
+        )
+    )
+
+    # Объединяем через UNION
+    combined = union_all(stmt1, stmt2)
+    
+    # Создаем CTE и алиас для корректного маппинга
+    cte = combined.cte("combined_subjects")
+    subject_alias = aliased(models.Subject, cte)
+
+    # Финальный запрос с загрузкой всех связей
+    final_query = (
+        select(subject_alias)
         .options(
-            selectinload(models.Subject.teacher)
+            selectinload(subject_alias.teacher)
             .selectinload(models.Teacher.user)
         )
-        .where(models.Subject.name.ilike(f"%{query}%"))
-        .limit(5)
+        .limit(20)
     )
-    subjects = subjects_result.scalars().all()
 
-    # Исправленный поиск по преподавателям
-    teachers_query = select(models.User).join(
-        models.Teacher, 
-        models.User.id == models.Teacher.user_id
-    ).where(
-        cast(models.User.role, String) == "teacher",  # Явное приведение ENUM к строке
-        or_(
-            models.User.first_name.ilike(f"%{query}%"),
-            models.User.last_name.ilike(f"%{query}%"),
-            models.User.patronymic.ilike(f"%{query}%")
-        )
-    ).limit(5)
+    # Выполняем запрос
+    result = await db.execute(final_query)
+    subjects = result.unique().scalars().all()
 
-    teachers_result = await db.execute(teachers_query)
-    teachers = teachers_result.scalars().all()
-
-    # Формирование результатов (оставляем без изменений)
-    results = {
-        "subjects": [
-            {
-                "id": subj.id,
-                "name": subj.name,
-                "type": subj.type,
-                "teacher": f"{subj.teacher.user.last_name} {subj.teacher.user.first_name}",
-                "url": f"/subjects/{subj.id}"
-            } for subj in subjects
-        ],
-        "teachers": [
-            {
-                "id": teacher.id,
-                "name": f"{teacher.last_name} {teacher.first_name} {teacher.patronymic or ''}",
-                "url": f"/teachers/{teacher.id}"
-            } for teacher in teachers
-        ]
-    }
+    # Формируем результаты
+    results = [
+        {
+            "id": subj.id,
+            "name": subj.name,
+            "type": subj.type,
+            "teacher": (
+                f"{subj.teacher.user.last_name} "
+                f"{subj.teacher.user.first_name} "
+                f"{subj.teacher.user.patronymic or ''}"
+            ).strip(),
+            "url": f"/subjects/{subj.id}/materials/"
+        } for subj in subjects
+    ]
 
     return JSONResponse(content={"results": results})
